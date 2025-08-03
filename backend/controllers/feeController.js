@@ -134,6 +134,12 @@ export const getStudentsByClass = async (req, res) => {
       return res.status(400).json({ message: "Fadlan dooro fasalka" });
     }
 
+    // Check if class exists
+    const existingClass = await Class.findById(classId);
+    if (!existingClass) {
+      return res.status(404).json({ message: "Fasalka lama helin" });
+    }
+
     const students = await Student.find({ class: classId })
       .populate('class')
       .sort({ fullname: 1 });
@@ -142,24 +148,25 @@ export const getStudentsByClass = async (req, res) => {
       return res.status(404).json({ message: "Fasalkan ardayga kuma jiraan" });
     }
 
-    // If month and year are provided, get fee records
-    let studentsWithFees = students;
-    if (month && year) {
-      studentsWithFees = await Promise.all(
-        students.map(async (student) => {
-          const feeRecord = await Fee.findOne({
+    // Always get fee records if month and year are provided, or return students without fee records
+    let studentsWithFees = await Promise.all(
+      students.map(async (student) => {
+        let feeRecord = null;
+        
+        if (month && year) {
+          feeRecord = await Fee.findOne({
             student: student._id,
             month: parseInt(month),
             year: parseInt(year)
           });
+        }
 
-          return {
-            ...student.toObject(),
-            feeRecord
-          };
-        })
-      );
-    }
+        return {
+          ...student.toObject(),
+          feeRecord
+        };
+      })
+    );
 
     return res.status(200).json({ 
       message: "Ardayda si guul leh ayaa loo helay", 
