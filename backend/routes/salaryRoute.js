@@ -7,7 +7,8 @@ import {
   updateSalaryRecord, 
   deleteSalaryRecord, 
   getSalaryStatistics,
-  getAllTeachers
+  getAllTeachers,
+  bulkUpdateSalaryPaymentStatus
 } from "../controllers/salaryController.js";
 import { protectedRoute } from "../middlewares/authorization.js";
 
@@ -30,6 +31,9 @@ router.get("/teacher/:teacherId", protectedRoute, getTeacherSalaryRecords);
 
 // Update salary record (mark as paid/unpaid, update amounts)
 router.put("/update/:salaryId", protectedRoute, updateSalaryRecord);
+
+// Bulk update salary payment status for multiple records
+router.put("/bulk-update-payment", protectedRoute, bulkUpdateSalaryPaymentStatus);
 
 // Delete salary record
 router.delete("/delete/:salaryId", protectedRoute, deleteSalaryRecord);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FiEdit2, FiTrash2, FiSearch, FiXCircle, FiDollarSign, FiUsers, FiCalendar } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiSearch, FiXCircle, FiDollarSign, FiUsers, FiCalendar, FiCheck, FiX } from "react-icons/fi";
 import { useSalaryStore } from "../store/salaryStore";
 import useTeachersStore from "../store/teachersStore";
 
@@ -34,6 +34,11 @@ const SalaryFile = () => {
   const [teachersWithSalaries, setTeachersWithSalaries] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [createMode, setCreateMode] = useState("all"); // "all" or "individual"
+  
+  // New state for bulk operations
+  const [selectedTeachers, setSelectedTeachers] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState(""); // "mark_paid" or "mark_unpaid"
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   const {
     createSalaryRecord,
@@ -43,6 +48,7 @@ const SalaryFile = () => {
     updateSalaryRecord,
     deleteSalaryRecord,
     getSalaryStatistics,
+    bulkUpdateSalaryPaymentStatus,
     loading: salaryLoading,
   } = useSalaryStore();
 
@@ -153,6 +159,72 @@ const SalaryFile = () => {
       handleViewSalaries();
     } catch (error) {
       console.error("Error updating payment status:", error);
+    }
+  };
+
+  // Handle bulk teacher selection
+  const handleTeacherSelection = (teacherId, salaryRecordId) => {
+    const newSelected = new Set(selectedTeachers);
+    const selectionKey = `${teacherId}-${salaryRecordId}`;
+    
+    if (newSelected.has(selectionKey)) {
+      newSelected.delete(selectionKey);
+    } else {
+      newSelected.add(selectionKey);
+    }
+    
+    setSelectedTeachers(newSelected);
+    setShowBulkActions(newSelected.size > 0);
+  };
+
+  // Handle select all/none
+  const handleSelectAll = (selectAll) => {
+    if (selectAll) {
+      const allSelectable = new Set();
+      teachersWithSalaries.forEach(teacher => {
+        if (teacher.salaryRecord) {
+          allSelectable.add(`${teacher._id}-${teacher.salaryRecord._id}`);
+        }
+      });
+      setSelectedTeachers(allSelectable);
+      setShowBulkActions(allSelectable.size > 0);
+    } else {
+      setSelectedTeachers(new Set());
+      setShowBulkActions(false);
+    }
+  };
+
+  // Handle bulk payment status update
+  const handleBulkPaymentUpdate = async (markAsPaid) => {
+    try {
+      const salaryUpdates = [];
+      
+      selectedTeachers.forEach(selectionKey => {
+        const [teacherId, salaryRecordId] = selectionKey.split('-');
+        salaryUpdates.push({
+          salaryId: salaryRecordId,
+          paid: markAsPaid,
+          paidDate: markAsPaid ? new Date().toISOString() : null
+        });
+      });
+
+      if (salaryUpdates.length === 0) {
+        alert("No teachers selected for bulk update.");
+        return;
+      }
+
+      await bulkUpdateSalaryPaymentStatus(salaryUpdates);
+      
+      // Clear selections and refresh data
+      setSelectedTeachers(new Set());
+      setShowBulkActions(false);
+      setBulkAction("");
+      
+      alert(`Successfully updated payment status for ${salaryUpdates.length} teachers.`);
+      
+    } catch (error) {
+      console.error("Error bulk updating payment status:", error);
+      alert("Error updating payment status. Please try again.");
     }
   };
 
@@ -570,14 +642,81 @@ const SalaryFile = () => {
                 {teachersWithSalaries.length > 0 ? (
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                     <div className="p-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Salary Records for {getMonthName(viewData.month)} {viewData.year}
-                      </h3>
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Salary Records for {getMonthName(viewData.month)} {viewData.year}
+                        </h3>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="selectAllTeachers"
+                                checked={selectedTeachers.size > 0 && selectedTeachers.size === teachersWithSalaries.filter(t => t.salaryRecord).length}
+                                onChange={(e) => handleSelectAll(e.target.checked)}
+                                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                              />
+                              <label htmlFor="selectAllTeachers" className="text-sm text-gray-700">
+                                Select All ({teachersWithSalaries.filter(t => t.salaryRecord).length})
+                              </label>
+                            </div>
+                            <div className="flex items-center space-x-3 text-xs">
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-green-100 rounded-full border border-green-300"></div>
+                                <span className="text-green-700">
+                                  Paid: {teachersWithSalaries.filter(t => t.salaryRecord?.paid).length}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-red-100 rounded-full border border-red-300"></div>
+                                <span className="text-red-700">
+                                  Unpaid: {teachersWithSalaries.filter(t => t.salaryRecord && !t.salaryRecord.paid).length}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-gray-100 rounded-full border border-gray-300"></div>
+                                <span className="text-gray-700">
+                                  No Record: {teachersWithSalaries.filter(t => !t.salaryRecord).length}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {showBulkActions && (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600">
+                                {selectedTeachers.size} selected
+                              </span>
+                              <button
+                                onClick={() => handleBulkPaymentUpdate(true)}
+                                className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200 transition-colors"
+                              >
+                                <FiCheck className="w-3 h-3 inline mr-1" />
+                                Mark Paid
+                              </button>
+                              <button
+                                onClick={() => handleBulkPaymentUpdate(false)}
+                                className="px-3 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium hover:bg-red-200 transition-colors"
+                              >
+                                <FiX className="w-3 h-3 inline mr-1" />
+                                Mark Unpaid
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-gray-50">
                           <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <input
+                                type="checkbox"
+                                checked={selectedTeachers.size > 0 && selectedTeachers.size === teachersWithSalaries.filter(t => t.salaryRecord).length}
+                                onChange={(e) => handleSelectAll(e.target.checked)}
+                                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                              />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Teacher
                             </th>
@@ -607,6 +746,16 @@ const SalaryFile = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                           {teachersWithSalaries.map((teacherData) => (
                             <tr key={teacherData._id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {teacherData.salaryRecord && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedTeachers.has(`${teacherData._id}-${teacherData.salaryRecord._id}`)}
+                                    onChange={() => handleTeacherSelection(teacherData._id, teacherData.salaryRecord._id)}
+                                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                                  />
+                                )}
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
                                   {teacherData.name}

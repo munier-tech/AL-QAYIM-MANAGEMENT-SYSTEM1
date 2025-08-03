@@ -221,6 +221,67 @@ export const deleteSalaryRecord = async (req, res) => {
   }
 };
 
+// Bulk update salary payment status for multiple teachers
+export const bulkUpdateSalaryPaymentStatus = async (req, res) => {
+  try {
+    const { salaryUpdates } = req.body; // Array of {salaryId, paid, paidDate}
+
+    if (!salaryUpdates || !Array.isArray(salaryUpdates) || salaryUpdates.length === 0) {
+      return res.status(400).json({ message: "Fadlan soo gudbi liiska diiwaannada mushaharka" });
+    }
+
+    const updateResults = [];
+    const errors = [];
+
+    for (const update of salaryUpdates) {
+      try {
+        const { salaryId, paid, paidDate } = update;
+        
+        if (!salaryId) {
+          errors.push({ salaryId, error: "Salary ID is required" });
+          continue;
+        }
+
+        const salaryRecord = await Salary.findById(salaryId);
+        if (!salaryRecord) {
+          errors.push({ salaryId, error: "Salary record not found" });
+          continue;
+        }
+
+        // Update payment status
+        salaryRecord.paid = paid;
+        salaryRecord.paidDate = paid ? (paidDate ? new Date(paidDate) : new Date()) : null;
+        
+        await salaryRecord.save();
+        await salaryRecord.populate(['teacher']);
+        
+        updateResults.push({
+          salaryId,
+          teacherName: salaryRecord.teacher.name,
+          paid: salaryRecord.paid,
+          paidDate: salaryRecord.paidDate,
+          totalAmount: salaryRecord.totalAmount
+        });
+
+      } catch (error) {
+        errors.push({ salaryId: update.salaryId, error: error.message });
+      }
+    }
+
+    return res.status(200).json({
+      message: `${updateResults.length} diiwaanka mushaharka si guul leh ayaa loo cusboonaysiiyay`,
+      updated: updateResults.length,
+      errors: errors.length,
+      results: updateResults,
+      errorDetails: errors
+    });
+
+  } catch (error) {
+    console.error("Error bulk updating salary payment status:", error);
+    return res.status(500).json({ message: "Khalad ayaa dhacay diiwaannada mushaharka cusboonaysiinta" });
+  }
+};
+
 // Get salary statistics
 export const getSalaryStatistics = async (req, res) => {
   try {
