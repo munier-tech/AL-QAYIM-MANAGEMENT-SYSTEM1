@@ -33,6 +33,8 @@ import CreateClassExam from './components/exams/CreateClassExam';
 import GetClassExams from './components/exams/GetClassExams';
 import DisciplinePage from './components/discipline/CreateDiscipline';
 import HealthFile from './health/HealthFile';
+import FeeFile from './fees/FeeFile';
+import SalaryFile from './salaries/SalaryFile';
 import StudentExams from './components/students/StudentExams';
 
 // Finance Components
@@ -376,6 +378,26 @@ function App() {
           <ProtectedRoute>
             <AdminRoute>
             <HealthFile/>
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/studentFees"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+            <FeeFile/>
+            </AdminRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/teacherSalaries"
+        element={
+          <ProtectedRoute>
+            <AdminRoute>
+            <SalaryFile/>
             </AdminRoute>
           </ProtectedRoute>
         }

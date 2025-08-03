@@ -51,6 +51,12 @@ const studentSchema = new mongoose.Schema({
       ref: "Discipline",
     },
   ],
+  feeRecords: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Fee",
+    },
+  ],
   attendance: [
     {
       type: mongoose.Schema.Types.ObjectId,
