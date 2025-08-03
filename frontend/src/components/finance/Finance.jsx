@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiCreditCard, FiPlus, FiList, FiEye, FiCalendar, FiUsers, FiRefreshCw } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiCreditCard, FiPlus, FiList, FiEye, FiCalendar, FiUsers, FiRotateCw } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import useFinanceStore from '../../store/financeStore';
 
@@ -90,7 +90,7 @@ const Finance = () => {
         {/* Auto-Generate Monthly Finance Section */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-            <FiRefreshCw className="mr-2" />
+            <FiRotateCw className="mr-2" />
             Si toos ah u abuur maalgelinta bishan
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -130,7 +130,7 @@ const Finance = () => {
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 ) : (
                   <>
-                    <FiRefreshCw className="mr-2" />
+                    <FiRotateCw className="mr-2" />
                     Abuur Maalgelin
                   </>
                 )}

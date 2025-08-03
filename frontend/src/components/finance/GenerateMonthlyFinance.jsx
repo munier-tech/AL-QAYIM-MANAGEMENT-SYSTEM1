@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiRefreshCw, FiCalendar, FiDollarSign, FiUsers, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
+import { FiRotateCw, FiCalendar, FiDollarSign, FiUsers, FiTrendingUp, FiTrendingDown } from 'react-icons/fi';
 import useFinanceStore from '../../store/financeStore';
 import useFeeStore from '../../store/feeStore';
 import useSalaryStore from '../../store/salaryStore';
@@ -102,7 +102,7 @@ const GenerateMonthlyFinance = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-            <FiRefreshCw className="mr-3 text-blue-600" />
+            <FiRotateCw className="mr-3 text-blue-600" />
             Si toos ah u abuur maalgelinta bishan
           </h1>
           <p className="text-gray-600 mt-2">
@@ -161,7 +161,7 @@ const GenerateMonthlyFinance = () => {
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               ) : (
-                <FiRefreshCw className="mr-2" />
+                <FiRotateCw className="mr-2" />
               )}
               Abuur Maalgelin
             </button>
