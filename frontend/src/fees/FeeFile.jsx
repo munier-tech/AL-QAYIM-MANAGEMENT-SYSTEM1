@@ -1,176 +1,171 @@
 import React, { useState, useEffect } from "react";
-import { FiEdit2, FiTrash2, FiSearch, FiXCircle, FiDollarSign, FiUsers, FiCalendar } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiSearch, FiXCircle, FiDollarSign, FiUsers, FiCalendar, FiPlus, FiCheck, FiX } from "react-icons/fi";
 import { useFeeStore } from "../store/feeStore";
 import useStudentsStore from "../store/studentsStore";
 import useClassesStore from "../store/classesStore";
 
 const FeeFile = () => {
-  const [activeTab, setActiveTab] = useState("create");
-  const [formData, setFormData] = useState({
-    selectedClass: null,
-    amount: "",
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    dueDate: "",
-    note: "",
-  });
-
-  const [individualFeeData, setIndividualFeeData] = useState({
-    student: null,
-    amount: "",
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    dueDate: "",
-    note: "",
-  });
-
-  const [viewData, setViewData] = useState({
-    selectedClass: null,
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-  });
-
-  const [studentSearchQuery, setStudentSearchQuery] = useState("");
-  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
+  const [activeTab, setActiveTab] = useState("manage");
+  
+  // Individual fee management state
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [classStudents, setClassStudents] = useState([]);
-  const [feeRecords, setFeeRecords] = useState([]);
-  const [loadingRecords, setLoadingRecords] = useState(false);
-  const [createMode, setCreateMode] = useState("class"); // "class" or "individual"
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  
+  // Fee editing state
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [feeForm, setFeeForm] = useState({
+    amount: "",
+    dueDate: "",
+    note: "",
+    paid: false
+  });
+
+  // Search and filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all"); // all, paid, unpaid, no-record
 
   const {
     createFeeRecord,
-    createClassFees,
     getStudentsByClass,
-    getAllFeeRecords,
     updateFeeRecord,
     deleteFeeRecord,
-    getFeeStatistics,
+    getAllFeeRecords,
     loading: feeLoading,
   } = useFeeStore();
 
-  const {
-    students,
-    fetchStudents,
-    loading: studentsLoading,
-  } = useStudentsStore();
-
-  const {
-    classes,
-    fetchClasses,
-    loading: classesLoading,
-  } = useClassesStore();
+  const { students, fetchStudents } = useStudentsStore();
+  const { classes, fetchClasses } = useClassesStore();
 
   useEffect(() => {
     fetchStudents();
     fetchClasses();
   }, [fetchStudents, fetchClasses]);
 
-  // Filter students based on search query
-  const filteredStudents = students.filter(
-    (student) =>
-      student.fullname.toLowerCase().includes(studentSearchQuery.toLowerCase())
-  );
-
-  const selectStudent = (student) => {
-    setStudentSearchQuery(student.fullname);
-    setShowStudentDropdown(false);
-    setIndividualFeeData({ ...individualFeeData, student });
-  };
-
-  const handleClassFeeCreate = async (e) => {
-    e.preventDefault();
-    if (!formData.selectedClass || !formData.amount || !formData.dueDate) {
-      alert("Please fill in all required fields.");
-      return;
+  // Load students when class/month/year changes
+  useEffect(() => {
+    if (selectedClass) {
+      loadClassStudents();
     }
+  }, [selectedClass, selectedMonth, selectedYear]);
 
-    const payload = {
-      classId: formData.selectedClass._id,
-      amount: parseFloat(formData.amount),
-      month: parseInt(formData.month),
-      year: parseInt(formData.year),
-      dueDate: formData.dueDate,
-      note: formData.note,
-    };
-
-    await createClassFees(payload);
+  const loadClassStudents = async () => {
+    if (!selectedClass) return;
     
-    // Reset form after successful creation
-    setFormData({
-      selectedClass: null,
-      amount: "",
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
-      dueDate: "",
-      note: "",
-    });
-  };
-
-  const handleIndividualFeeCreate = async (e) => {
-    e.preventDefault();
-    if (!individualFeeData.student || !individualFeeData.amount || !individualFeeData.dueDate) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-
-    const payload = {
-      student: individualFeeData.student._id,
-      amount: parseFloat(individualFeeData.amount),
-      month: parseInt(individualFeeData.month),
-      year: parseInt(individualFeeData.year),
-      dueDate: individualFeeData.dueDate,
-      note: individualFeeData.note,
-    };
-
-    await createFeeRecord(payload);
-    
-    // Reset form after successful creation
-    setIndividualFeeData({
-      student: null,
-      amount: "",
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
-      dueDate: "",
-      note: "",
-    });
-    setStudentSearchQuery("");
-  };
-
-  const handleViewFees = async () => {
-    if (!viewData.selectedClass) {
-      alert("Please select a class to view fees.");
-      return;
-    }
-
-    setLoadingRecords(true);
+    setLoadingStudents(true);
     try {
       const response = await getStudentsByClass(
-        viewData.selectedClass._id,
-        viewData.month,
-        viewData.year
+        selectedClass._id,
+        selectedMonth,
+        selectedYear
       );
       setClassStudents(response || []);
     } catch (error) {
-      console.error("Error fetching class students with fees:", error);
+      console.error("Error loading students:", error);
       setClassStudents([]);
     } finally {
-      setLoadingRecords(false);
+      setLoadingStudents(false);
     }
   };
 
-  const handlePaymentToggle = async (feeRecord) => {
+  const handleCreateOrUpdateFee = async (student) => {
+    if (!feeForm.amount || !feeForm.dueDate) {
+      alert("Please fill in amount and due date");
+      return;
+    }
+
     try {
-      await updateFeeRecord(feeRecord._id, {
-        paid: !feeRecord.paid,
-        paidDate: !feeRecord.paid ? new Date().toISOString() : null,
+      const feeData = {
+        student: student._id,
+        amount: parseFloat(feeForm.amount),
+        month: selectedMonth,
+        year: selectedYear,
+        dueDate: feeForm.dueDate,
+        note: feeForm.note,
+        paid: feeForm.paid,
+        paidDate: feeForm.paid ? new Date().toISOString() : null
+      };
+
+      if (student.feeRecord) {
+        // Update existing fee
+        await updateFeeRecord(student.feeRecord._id, {
+          amount: feeData.amount,
+          dueDate: feeData.dueDate,
+          note: feeData.note,
+          paid: feeData.paid,
+          paidDate: feeData.paidDate
+        });
+      } else {
+        // Create new fee
+        await createFeeRecord(feeData);
+      }
+
+      // Reset form and reload students
+      setEditingStudent(null);
+      setFeeForm({ amount: "", dueDate: "", note: "", paid: false });
+      await loadClassStudents();
+    } catch (error) {
+      console.error("Error saving fee:", error);
+    }
+  };
+
+  const handleEditFee = (student) => {
+    setEditingStudent(student._id);
+    if (student.feeRecord) {
+      setFeeForm({
+        amount: student.feeRecord.amount.toString(),
+        dueDate: student.feeRecord.dueDate.split('T')[0],
+        note: student.feeRecord.note || "",
+        paid: student.feeRecord.paid
       });
-      
-      // Refresh the data
-      handleViewFees();
+    } else {
+      setFeeForm({
+        amount: "",
+        dueDate: "",
+        note: "",
+        paid: false
+      });
+    }
+  };
+
+  const handleDeleteFee = async (feeId) => {
+    if (!confirm("Are you sure you want to delete this fee record?")) return;
+    
+    try {
+      await deleteFeeRecord(feeId);
+      await loadClassStudents();
+    } catch (error) {
+      console.error("Error deleting fee:", error);
+    }
+  };
+
+  const togglePaymentStatus = async (student) => {
+    if (!student.feeRecord) return;
+    
+    try {
+      await updateFeeRecord(student.feeRecord._id, {
+        paid: !student.feeRecord.paid,
+        paidDate: !student.feeRecord.paid ? new Date().toISOString() : null
+      });
+      await loadClassStudents();
     } catch (error) {
       console.error("Error updating payment status:", error);
     }
   };
+
+  // Filter students based on search and status
+  const filteredStudents = classStudents.filter(student => {
+    const matchesSearch = student.fullname.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (filterStatus === "all") return matchesSearch;
+    if (filterStatus === "paid") return matchesSearch && student.feeRecord?.paid;
+    if (filterStatus === "unpaid") return matchesSearch && student.feeRecord && !student.feeRecord.paid;
+    if (filterStatus === "no-record") return matchesSearch && !student.feeRecord;
+    
+    return matchesSearch;
+  });
 
   const getMonthName = (monthNum) => {
     const months = [
@@ -178,6 +173,18 @@ const FeeFile = () => {
       "July", "August", "September", "October", "November", "December"
     ];
     return months[monthNum - 1];
+  };
+
+  const getStatusColor = (student) => {
+    if (!student.feeRecord) return "bg-gray-100 text-gray-800";
+    if (student.feeRecord.paid) return "bg-green-100 text-green-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  const getStatusText = (student) => {
+    if (!student.feeRecord) return "No Record";
+    if (student.feeRecord.paid) return "Paid";
+    return "Unpaid";
   };
 
   return (
@@ -189,511 +196,268 @@ const FeeFile = () => {
             <div className="p-2 bg-blue-100 rounded-lg">
               <FiDollarSign className="w-6 h-6 text-blue-600" />
             </div>
-            <h1 className="text-3xl font-bold">Student Fee Management</h1>
+            <h1 className="text-3xl font-bold">Individual Student Fee Management</h1>
           </div>
-          <p className="mt-1 text-sm opacity-90">Manage and track student fees with ease.</p>
+          <p className="mt-1 text-sm opacity-90">Set and manage individual student fees with precise control.</p>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm mb-6 border border-gray-100">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab("create")}
-              className={`px-6 py-4 font-medium text-sm transition-colors ${
-                activeTab === "create"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <FiDollarSign className="w-4 h-4" />
-                <span>Create Fees</span>
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("view")}
-              className={`px-6 py-4 font-medium text-sm transition-colors ${
-                activeTab === "view"
-                  ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50"
-                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <FiSearch className="w-4 h-4" />
-                <span>View Fees</span>
-              </div>
-            </button>
+        {/* Class and Period Selection */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+          <h2 className="text-lg font-semibold mb-4">Select Class and Period</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
+              <select
+                value={selectedClass?._id || ""}
+                onChange={(e) => {
+                  const cls = classes.find(c => c._id === e.target.value);
+                  setSelectedClass(cls);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select a class</option>
+                {classes.map((cls) => (
+                  <option key={cls._id} value={cls._id}>{cls.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>{getMonthName(i + 1)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+              <input
+                type="number"
+                min="2020"
+                max="2030"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={loadClassStudents}
+                disabled={!selectedClass || loadingStudents}
+                className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loadingStudents ? "Loading..." : "Load Students"}
+              </button>
+            </div>
           </div>
+        </div>
 
-          <div className="p-6">
-            {/* Create Fee Tab Content */}
-            {activeTab === "create" && (
-              <div className="space-y-6">
-                {/* Create Mode Toggle */}
-                <div className="flex space-x-4 mb-6">
-                  <button
-                    onClick={() => setCreateMode("class")}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      createMode === "class"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    <FiUsers className="w-4 h-4 inline mr-2" />
-                    Create for Class
-                  </button>
-                  <button
-                    onClick={() => setCreateMode("individual")}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      createMode === "individual"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Create for Individual
-                  </button>
+        {/* Search and Filter */}
+        {selectedClass && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search students..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
                 </div>
+              </div>
+              <div>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Students</option>
+                  <option value="paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                  <option value="no-record">No Record</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
 
-                {createMode === "class" ? (
-                  <form onSubmit={handleClassFeeCreate} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Class Selection */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Select Class *
-                        </label>
-                        <select
-                          value={formData.selectedClass?._id || ""}
-                          onChange={(e) => {
-                            const selectedClass = classes.find(c => c._id === e.target.value);
-                            setFormData({ ...formData, selectedClass });
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        >
-                          <option value="">Select a class</option>
-                          {classes.map((cls) => (
-                            <option key={cls._id} value={cls._id}>
-                              {cls.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+        {/* Students List */}
+        {selectedClass && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold">
+                {selectedClass.name} - {getMonthName(selectedMonth)} {selectedYear}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} 
+                {filterStatus !== 'all' && ` (${filterStatus.replace('-', ' ')})`}
+              </p>
+            </div>
 
-                      {/* Amount */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Fee Amount ($) *
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={formData.amount}
-                          onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter fee amount..."
-                          required
-                        />
-                      </div>
-
-                      {/* Month */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Month *
-                        </label>
-                        <select
-                          value={formData.month}
-                          onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        >
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                              {getMonthName(i + 1)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Year */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Year *
-                        </label>
-                        <input
-                          type="number"
-                          min="2020"
-                          max="2030"
-                          value={formData.year}
-                          onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        />
-                      </div>
-
-                      {/* Due Date */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Due Date *
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.dueDate}
-                          onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        />
-                      </div>
-
-                      {/* Note */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Note
-                        </label>
-                        <textarea
-                          value={formData.note}
-                          onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          rows="3"
-                          placeholder="Optional note..."
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={feeLoading || !formData.selectedClass}
-                      className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
-                        feeLoading || !formData.selectedClass ? "opacity-60 cursor-not-allowed" : "hover:shadow-lg"
-                      } bg-blue-600 text-white`}
-                    >
-                      {feeLoading ? "Creating..." : "Create Fees for Class"}
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleIndividualFeeCreate} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Student Selection */}
-                      <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Select Student *
-                        </label>
-                        <div className="relative">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fee Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredStudents.map((student) => (
+                    <tr key={student._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{student.fullname}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingStudent === student._id ? (
                           <input
-                            type="text"
-                            value={studentSearchQuery}
-                            onChange={(e) => {
-                              setStudentSearchQuery(e.target.value);
-                              setShowStudentDropdown(true);
-                            }}
-                            onFocus={() => setShowStudentDropdown(true)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Search for a student..."
-                            required
+                            type="number"
+                            step="0.01"
+                            value={feeForm.amount}
+                            onChange={(e) => setFeeForm({...feeForm, amount: e.target.value})}
+                            className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                            placeholder="Amount"
                           />
-                          {studentSearchQuery && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setStudentSearchQuery("");
-                                setIndividualFeeData({ ...individualFeeData, student: null });
-                                setShowStudentDropdown(false);
-                              }}
-                              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                              <FiXCircle className="w-4 h-4" />
-                            </button>
+                        ) : (
+                          <span className="text-gray-900">
+                            {student.feeRecord ? `$${student.feeRecord.amount}` : '-'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingStudent === student._id ? (
+                          <input
+                            type="date"
+                            value={feeForm.dueDate}
+                            onChange={(e) => setFeeForm({...feeForm, dueDate: e.target.value})}
+                            className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                          />
+                        ) : (
+                          <span className="text-gray-900">
+                            {student.feeRecord ? new Date(student.feeRecord.dueDate).toLocaleDateString() : '-'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {editingStudent === student._id ? (
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={feeForm.paid}
+                              onChange={(e) => setFeeForm({...feeForm, paid: e.target.checked})}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm">Paid</span>
+                          </label>
+                        ) : (
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(student)}`}>
+                            {getStatusText(student)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          {editingStudent === student._id ? (
+                            <>
+                              <button
+                                onClick={() => handleCreateOrUpdateFee(student)}
+                                disabled={feeLoading}
+                                className="p-1 text-green-600 hover:text-green-800"
+                                title="Save"
+                              >
+                                <FiCheck className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingStudent(null);
+                                  setFeeForm({ amount: "", dueDate: "", note: "", paid: false });
+                                }}
+                                className="p-1 text-gray-600 hover:text-gray-800"
+                                title="Cancel"
+                              >
+                                <FiX className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEditFee(student)}
+                                className="p-1 text-blue-600 hover:text-blue-800"
+                                title={student.feeRecord ? "Edit Fee" : "Add Fee"}
+                              >
+                                {student.feeRecord ? <FiEdit2 className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
+                              </button>
+                              
+                              {student.feeRecord && (
+                                <>
+                                  <button
+                                    onClick={() => togglePaymentStatus(student)}
+                                    className={`p-1 ${student.feeRecord.paid ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
+                                    title={student.feeRecord.paid ? "Mark as Unpaid" : "Mark as Paid"}
+                                  >
+                                    {student.feeRecord.paid ? <FiX className="w-4 h-4" /> : <FiCheck className="w-4 h-4" />}
+                                  </button>
+                                  
+                                  <button
+                                    onClick={() => handleDeleteFee(student.feeRecord._id)}
+                                    className="p-1 text-red-600 hover:text-red-800"
+                                    title="Delete Fee"
+                                  >
+                                    <FiTrash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </>
                           )}
                         </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-                        {showStudentDropdown && filteredStudents.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                            {filteredStudents.map((student) => (
-                              <div
-                                key={student._id}
-                                onClick={() => selectStudent(student)}
-                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                              >
-                                <div className="font-medium">{student.fullname}</div>
-                                <div className="text-sm text-gray-500">
-                                  Class: {student.class?.name || 'Not assigned'}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Amount */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Fee Amount ($) *
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={individualFeeData.amount}
-                          onChange={(e) => setIndividualFeeData({ ...individualFeeData, amount: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter fee amount..."
-                          required
-                        />
-                      </div>
-
-                      {/* Month */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Month *
-                        </label>
-                        <select
-                          value={individualFeeData.month}
-                          onChange={(e) => setIndividualFeeData({ ...individualFeeData, month: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        >
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                              {getMonthName(i + 1)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Year */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Year *
-                        </label>
-                        <input
-                          type="number"
-                          min="2020"
-                          max="2030"
-                          value={individualFeeData.year}
-                          onChange={(e) => setIndividualFeeData({ ...individualFeeData, year: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        />
-                      </div>
-
-                      {/* Due Date */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Due Date *
-                        </label>
-                        <input
-                          type="date"
-                          value={individualFeeData.dueDate}
-                          onChange={(e) => setIndividualFeeData({ ...individualFeeData, dueDate: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          required
-                        />
-                      </div>
-
-                      {/* Note */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Note
-                        </label>
-                        <textarea
-                          value={individualFeeData.note}
-                          onChange={(e) => setIndividualFeeData({ ...individualFeeData, note: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          rows="3"
-                          placeholder="Optional note..."
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={feeLoading || !individualFeeData.student}
-                      className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
-                        feeLoading || !individualFeeData.student ? "opacity-60 cursor-not-allowed" : "hover:shadow-lg"
-                      } bg-blue-600 text-white`}
-                    >
-                      {feeLoading ? "Creating..." : "Create Fee Record"}
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {/* View Fee Tab Content */}
-            {activeTab === "view" && (
-              <div className="space-y-6">
-                {/* Search Controls */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Class *
-                    </label>
-                    <select
-                      value={viewData.selectedClass?._id || ""}
-                      onChange={(e) => {
-                        const selectedClass = classes.find(c => c._id === e.target.value);
-                        setViewData({ ...viewData, selectedClass });
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    >
-                      <option value="">Select a class</option>
-                      {classes.map((cls) => (
-                        <option key={cls._id} value={cls._id}>
-                          {cls.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Month
-                    </label>
-                    <select
-                      value={viewData.month}
-                      onChange={(e) => setViewData({ ...viewData, month: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          {getMonthName(i + 1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Year
-                    </label>
-                    <input
-                      type="number"
-                      min="2020"
-                      max="2030"
-                      value={viewData.year}
-                      onChange={(e) => setViewData({ ...viewData, year: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex items-end">
-                    <button
-                      onClick={handleViewFees}
-                      disabled={loadingRecords || !viewData.selectedClass}
-                      className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
-                        loadingRecords || !viewData.selectedClass 
-                          ? "opacity-60 cursor-not-allowed" 
-                          : "hover:shadow-lg"
-                      } bg-blue-600 text-white`}
-                    >
-                      {loadingRecords ? "Loading..." : "Search Fees"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Results */}
-                {classStudents.length > 0 ? (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Fee Records for {viewData.selectedClass?.name} - {getMonthName(viewData.month)} {viewData.year}
-                      </h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Student
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Amount
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Due Date
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {classStudents.map((studentData) => (
-                            <tr key={studentData._id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {studentData.fullname}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {studentData.feeRecord ? `$${studentData.feeRecord.amount}` : 'No fee set'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {studentData.feeRecord 
-                                    ? new Date(studentData.feeRecord.dueDate).toLocaleDateString()
-                                    : '-'
-                                  }
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {studentData.feeRecord ? (
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    studentData.feeRecord.paid
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-red-100 text-red-800'
-                                  }`}>
-                                    {studentData.feeRecord.paid ? 'Paid' : 'Unpaid'}
-                                  </span>
-                                ) : (
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                    No Record
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                {studentData.feeRecord && (
-                                  <button
-                                    onClick={() => handlePaymentToggle(studentData.feeRecord)}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                      studentData.feeRecord.paid
-                                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                        : 'bg-green-100 text-green-700 hover:bg-green-200'
-                                    }`}
-                                  >
-                                    Mark as {studentData.feeRecord.paid ? 'Unpaid' : 'Paid'}
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : viewData.selectedClass && !loadingRecords ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <FiSearch className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium">No students found</p>
-                    <p className="text-sm">
-                      {viewData.selectedClass 
-                        ? "No students found in this class or no fee records for the selected period."
-                        : "Please select a class to view fee records."
-                      }
-                    </p>
-                  </div>
-                ) : null}
+            {filteredStudents.length === 0 && !loadingStudents && (
+              <div className="text-center py-8 text-gray-500">
+                <FiUsers className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <p className="text-lg font-medium">No students found</p>
+                <p className="text-sm">
+                  {searchQuery || filterStatus !== 'all' 
+                    ? "Try adjusting your search or filter criteria."
+                    : "Please select a class to view students."
+                  }
+                </p>
               </div>
             )}
           </div>
-        </div>
+        )}
+
+        {/* Note Input (when editing) */}
+        {editingStudent && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mt-6 border border-gray-100">
+            <h3 className="text-lg font-semibold mb-4">Additional Note</h3>
+            <textarea
+              value={feeForm.note}
+              onChange={(e) => setFeeForm({...feeForm, note: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows="3"
+              placeholder="Optional note about this fee..."
+            />
+          </div>
+        )}
       </div>
     </div>
   );
