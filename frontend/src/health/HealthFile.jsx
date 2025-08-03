@@ -43,6 +43,8 @@ const HealthFile = () => {
     setShowStudentDropdown(false);
     if (activeTab === "create") {
       setFormData({ ...formData, student });
+    } else {
+      setFormData({ ...formData, student });
     }
   };
 
@@ -172,9 +174,7 @@ const HealthFile = () => {
                 value={studentSearchQuery}
                 onChange={(e) => {
                   setStudentSearchQuery(e.target.value);
-                  // Ensure dropdown is shown when typing
                   setShowStudentDropdown(true);
-                  // If the user clears the search, also clear the selected student
                   if (e.target.value === "") {
                     setFormData({ ...formData, student: null });
                   }
@@ -190,7 +190,7 @@ const HealthFile = () => {
                   onClick={() => {
                     setStudentSearchQuery("");
                     setFormData({ ...formData, student: null });
-                    setHealthRecords([]); // Clear records when search is cleared
+                    setHealthRecords([]);
                   }}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-500 transition-colors"
                 >
