@@ -1,160 +1,161 @@
 import React, { useState, useEffect } from "react";
-import { FiEdit2, FiTrash2, FiSearch, FiXCircle, FiDollarSign, FiUsers, FiCalendar } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiSearch, FiDollarSign, FiUsers, FiPlus, FiCheck, FiX } from "react-icons/fi";
 import { useSalaryStore } from "../store/salaryStore";
 import useTeachersStore from "../store/teachersStore";
 
 const SalaryFile = () => {
-  const [activeTab, setActiveTab] = useState("create");
-  const [formData, setFormData] = useState({
-    amount: "",
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    bonus: "",
-    deductions: "",
-    note: "",
-  });
-
-  const [individualSalaryData, setIndividualSalaryData] = useState({
-    teacher: null,
-    amount: "",
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    bonus: "",
-    deductions: "",
-    note: "",
-  });
-
-  const [viewData, setViewData] = useState({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-  });
-
-  const [teacherSearchQuery, setTeacherSearchQuery] = useState("");
-  const [showTeacherDropdown, setShowTeacherDropdown] = useState(false);
+  // Individual salary management state
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [teachersWithSalaries, setTeachersWithSalaries] = useState([]);
-  const [loadingRecords, setLoadingRecords] = useState(false);
-  const [createMode, setCreateMode] = useState("all"); // "all" or "individual"
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  
+  // Salary editing state
+  const [editingTeacher, setEditingTeacher] = useState(null);
+  const [salaryForm, setSalaryForm] = useState({
+    amount: "",
+    bonus: "",
+    deductions: "",
+    note: "",
+    paid: false
+  });
+
+  // Search and filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all"); // all, paid, unpaid, no-record
 
   const {
     createSalaryRecord,
-    createAllTeachersSalaries,
     getAllTeachers,
-    getAllSalaryRecords,
     updateSalaryRecord,
     deleteSalaryRecord,
-    getSalaryStatistics,
     loading: salaryLoading,
   } = useSalaryStore();
 
-  const {
-    teachers,
-    fetchTeachers,
-    loading: teachersLoading,
-  } = useTeachersStore();
+  const { teachers, fetchTeachers } = useTeachersStore();
 
   useEffect(() => {
     fetchTeachers();
   }, [fetchTeachers]);
 
-  // Filter teachers based on search query
-  const filteredTeachers = teachers.filter(
-    (teacher) =>
-      teacher.name.toLowerCase().includes(teacherSearchQuery.toLowerCase())
-  );
+  // Load teachers when month/year changes
+  useEffect(() => {
+    loadTeachersWithSalaries();
+  }, [selectedMonth, selectedYear]);
 
-  const selectTeacher = (teacher) => {
-    setTeacherSearchQuery(teacher.name);
-    setShowTeacherDropdown(false);
-    setIndividualSalaryData({ ...individualSalaryData, teacher });
-  };
-
-  const handleAllTeachersSalaryCreate = async (e) => {
-    e.preventDefault();
-    if (!formData.amount) {
-      alert("Please fill in the salary amount.");
-      return;
-    }
-
-    const payload = {
-      amount: parseFloat(formData.amount),
-      month: parseInt(formData.month),
-      year: parseInt(formData.year),
-      bonus: formData.bonus ? parseFloat(formData.bonus) : 0,
-      deductions: formData.deductions ? parseFloat(formData.deductions) : 0,
-      note: formData.note,
-    };
-
-    await createAllTeachersSalaries(payload);
-    
-    // Reset form after successful creation
-    setFormData({
-      amount: "",
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
-      bonus: "",
-      deductions: "",
-      note: "",
-    });
-  };
-
-  const handleIndividualSalaryCreate = async (e) => {
-    e.preventDefault();
-    if (!individualSalaryData.teacher || !individualSalaryData.amount) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-
-    const payload = {
-      teacher: individualSalaryData.teacher._id,
-      amount: parseFloat(individualSalaryData.amount),
-      month: parseInt(individualSalaryData.month),
-      year: parseInt(individualSalaryData.year),
-      bonus: individualSalaryData.bonus ? parseFloat(individualSalaryData.bonus) : 0,
-      deductions: individualSalaryData.deductions ? parseFloat(individualSalaryData.deductions) : 0,
-      note: individualSalaryData.note,
-    };
-
-    await createSalaryRecord(payload);
-    
-    // Reset form after successful creation
-    setIndividualSalaryData({
-      teacher: null,
-      amount: "",
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
-      bonus: "",
-      deductions: "",
-      note: "",
-    });
-    setTeacherSearchQuery("");
-  };
-
-  const handleViewSalaries = async () => {
-    setLoadingRecords(true);
+  const loadTeachersWithSalaries = async () => {
+    setLoadingTeachers(true);
     try {
-      const response = await getAllTeachers(viewData.month, viewData.year);
+      const response = await getAllTeachers(selectedMonth, selectedYear);
       setTeachersWithSalaries(response || []);
     } catch (error) {
-      console.error("Error fetching teachers with salaries:", error);
+      console.error("Error loading teachers:", error);
       setTeachersWithSalaries([]);
     } finally {
-      setLoadingRecords(false);
+      setLoadingTeachers(false);
     }
   };
 
-  const handlePaymentToggle = async (salaryRecord) => {
+  const handleCreateOrUpdateSalary = async (teacher) => {
+    if (!salaryForm.amount) {
+      alert("Please fill in the salary amount");
+      return;
+    }
+
     try {
-      await updateSalaryRecord(salaryRecord._id, {
-        paid: !salaryRecord.paid,
-        paidDate: !salaryRecord.paid ? new Date().toISOString() : null,
+      const salaryData = {
+        teacher: teacher._id,
+        amount: parseFloat(salaryForm.amount),
+        bonus: parseFloat(salaryForm.bonus) || 0,
+        deductions: parseFloat(salaryForm.deductions) || 0,
+        month: selectedMonth,
+        year: selectedYear,
+        note: salaryForm.note,
+        paid: salaryForm.paid,
+        paidDate: salaryForm.paid ? new Date().toISOString() : null
+      };
+
+      if (teacher.salaryRecord) {
+        // Update existing salary
+        await updateSalaryRecord(teacher.salaryRecord._id, {
+          amount: salaryData.amount,
+          bonus: salaryData.bonus,
+          deductions: salaryData.deductions,
+          note: salaryData.note,
+          paid: salaryData.paid,
+          paidDate: salaryData.paidDate
+        });
+      } else {
+        // Create new salary
+        await createSalaryRecord(salaryData);
+      }
+
+      // Reset form and reload teachers
+      setEditingTeacher(null);
+      setSalaryForm({ amount: "", bonus: "", deductions: "", note: "", paid: false });
+      await loadTeachersWithSalaries();
+    } catch (error) {
+      console.error("Error saving salary:", error);
+    }
+  };
+
+  const handleEditSalary = (teacher) => {
+    setEditingTeacher(teacher._id);
+    if (teacher.salaryRecord) {
+      setSalaryForm({
+        amount: teacher.salaryRecord.amount.toString(),
+        bonus: teacher.salaryRecord.bonus?.toString() || "",
+        deductions: teacher.salaryRecord.deductions?.toString() || "",
+        note: teacher.salaryRecord.note || "",
+        paid: teacher.salaryRecord.paid
       });
-      
-      // Refresh the data
-      handleViewSalaries();
+    } else {
+      setSalaryForm({
+        amount: "",
+        bonus: "",
+        deductions: "",
+        note: "",
+        paid: false
+      });
+    }
+  };
+
+  const handleDeleteSalary = async (salaryId) => {
+    if (!confirm("Are you sure you want to delete this salary record?")) return;
+    
+    try {
+      await deleteSalaryRecord(salaryId);
+      await loadTeachersWithSalaries();
+    } catch (error) {
+      console.error("Error deleting salary:", error);
+    }
+  };
+
+  const togglePaymentStatus = async (teacher) => {
+    if (!teacher.salaryRecord) return;
+    
+    try {
+      await updateSalaryRecord(teacher.salaryRecord._id, {
+        paid: !teacher.salaryRecord.paid,
+        paidDate: !teacher.salaryRecord.paid ? new Date().toISOString() : null
+      });
+      await loadTeachersWithSalaries();
     } catch (error) {
       console.error("Error updating payment status:", error);
     }
   };
+
+  // Filter teachers based on search and status
+  const filteredTeachers = teachersWithSalaries.filter(teacher => {
+    const matchesSearch = teacher.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (filterStatus === "all") return matchesSearch;
+    if (filterStatus === "paid") return matchesSearch && teacher.salaryRecord?.paid;
+    if (filterStatus === "unpaid") return matchesSearch && teacher.salaryRecord && !teacher.salaryRecord.paid;
+    if (filterStatus === "no-record") return matchesSearch && !teacher.salaryRecord;
+    
+    return matchesSearch;
+  });
 
   const getMonthName = (monthNum) => {
     const months = [
@@ -162,6 +163,22 @@ const SalaryFile = () => {
       "July", "August", "September", "October", "November", "December"
     ];
     return months[monthNum - 1];
+  };
+
+  const getStatusColor = (teacher) => {
+    if (!teacher.salaryRecord) return "bg-gray-100 text-gray-800";
+    if (teacher.salaryRecord.paid) return "bg-green-100 text-green-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  const getStatusText = (teacher) => {
+    if (!teacher.salaryRecord) return "No Record";
+    if (teacher.salaryRecord.paid) return "Paid";
+    return "Unpaid";
+  };
+
+  const calculateNetSalary = (amount, bonus = 0, deductions = 0) => {
+    return parseFloat(amount || 0) + parseFloat(bonus || 0) - parseFloat(deductions || 0);
   };
 
   return (
@@ -173,518 +190,279 @@ const SalaryFile = () => {
             <div className="p-2 bg-green-100 rounded-lg">
               <FiDollarSign className="w-6 h-6 text-green-600" />
             </div>
-            <h1 className="text-3xl font-bold">Teacher Salary Management</h1>
+            <h1 className="text-3xl font-bold">Individual Teacher Salary Management</h1>
           </div>
-          <p className="mt-1 text-sm opacity-90">Manage and track teacher salaries with ease.</p>
+          <p className="mt-1 text-sm opacity-90">Set and manage individual teacher salaries with precise control.</p>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm mb-6 border border-gray-100">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab("create")}
-              className={`px-6 py-4 font-medium text-sm transition-colors ${
-                activeTab === "create"
-                  ? "text-green-600 border-b-2 border-green-600 bg-green-50"
-                  : "text-gray-600 hover:text-green-600 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <FiDollarSign className="w-4 h-4" />
-                <span>Create Salaries</span>
+        {/* Period Selection */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+          <h2 className="text-lg font-semibold mb-4">Select Period</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              >
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>{getMonthName(i + 1)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+              <input
+                type="number"
+                min="2020"
+                max="2030"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={loadTeachersWithSalaries}
+                disabled={loadingTeachers}
+                className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                {loadingTeachers ? "Loading..." : "Load Teachers"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Filter */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search teachers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
               </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("view")}
-              className={`px-6 py-4 font-medium text-sm transition-colors ${
-                activeTab === "view"
-                  ? "text-green-600 border-b-2 border-green-600 bg-green-50"
-                  : "text-gray-600 hover:text-green-600 hover:bg-gray-50"
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <FiSearch className="w-4 h-4" />
-                <span>View Salaries</span>
-              </div>
-            </button>
+            </div>
+            <div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              >
+                <option value="all">All Teachers</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="no-record">No Record</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Teachers List */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold">
+              Teacher Salaries - {getMonthName(selectedMonth)} {selectedYear}
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              {filteredTeachers.length} teacher{filteredTeachers.length !== 1 ? 's' : ''} 
+              {filterStatus !== 'all' && ` (${filterStatus.replace('-', ' ')})`}
+            </p>
           </div>
 
-          <div className="p-6">
-            {/* Create Salary Tab Content */}
-            {activeTab === "create" && (
-              <div className="space-y-6">
-                {/* Create Mode Toggle */}
-                <div className="flex space-x-4 mb-6">
-                  <button
-                    onClick={() => setCreateMode("all")}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      createMode === "all"
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    <FiUsers className="w-4 h-4 inline mr-2" />
-                    Create for All Teachers
-                  </button>
-                  <button
-                    onClick={() => setCreateMode("individual")}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      createMode === "individual"
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Create for Individual
-                  </button>
-                </div>
-
-                {createMode === "all" ? (
-                  <form onSubmit={handleAllTeachersSalaryCreate} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Base Salary Amount */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Base Salary Amount ($) *
-                        </label>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teacher</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Base Salary</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bonus</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deductions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Net Salary</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredTeachers.map((teacher) => (
+                  <tr key={teacher._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">{teacher.name}</div>
+                      <div className="text-sm text-gray-500">{teacher.subject || 'N/A'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingTeacher === teacher._id ? (
                         <input
                           type="number"
                           step="0.01"
-                          min="0"
-                          value={formData.amount}
-                          onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          placeholder="Enter base salary amount..."
-                          required
+                          value={salaryForm.amount}
+                          onChange={(e) => setSalaryForm({...salaryForm, amount: e.target.value})}
+                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="Amount"
                         />
-                      </div>
-
-                      {/* Bonus */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Bonus ($)
-                        </label>
+                      ) : (
+                        <span className="text-gray-900">
+                          {teacher.salaryRecord ? `$${teacher.salaryRecord.amount}` : '-'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingTeacher === teacher._id ? (
                         <input
                           type="number"
                           step="0.01"
-                          min="0"
-                          value={formData.bonus}
-                          onChange={(e) => setFormData({ ...formData, bonus: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          placeholder="Enter bonus amount..."
+                          value={salaryForm.bonus}
+                          onChange={(e) => setSalaryForm({...salaryForm, bonus: e.target.value})}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="0"
                         />
-                      </div>
-
-                      {/* Deductions */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Deductions ($)
-                        </label>
+                      ) : (
+                        <span className="text-gray-900">
+                          {teacher.salaryRecord?.bonus ? `$${teacher.salaryRecord.bonus}` : '$0'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingTeacher === teacher._id ? (
                         <input
                           type="number"
                           step="0.01"
-                          min="0"
-                          value={formData.deductions}
-                          onChange={(e) => setFormData({ ...formData, deductions: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          placeholder="Enter deductions amount..."
+                          value={salaryForm.deductions}
+                          onChange={(e) => setSalaryForm({...salaryForm, deductions: e.target.value})}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="0"
                         />
-                      </div>
-
-                      {/* Month */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Month *
-                        </label>
-                        <select
-                          value={formData.month}
-                          onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          required
-                        >
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                              {getMonthName(i + 1)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Year */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Year *
-                        </label>
-                        <input
-                          type="number"
-                          min="2020"
-                          max="2030"
-                          value={formData.year}
-                          onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          required
-                        />
-                      </div>
-
-                      {/* Note */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Note
-                        </label>
-                        <textarea
-                          value={formData.note}
-                          onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          rows="3"
-                          placeholder="Optional note..."
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={salaryLoading || !formData.amount}
-                      className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
-                        salaryLoading || !formData.amount ? "opacity-60 cursor-not-allowed" : "hover:shadow-lg"
-                      } bg-green-600 text-white`}
-                    >
-                      {salaryLoading ? "Creating..." : "Create Salaries for All Teachers"}
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleIndividualSalaryCreate} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Teacher Selection */}
-                      <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Select Teacher *
-                        </label>
-                        <div className="relative">
+                      ) : (
+                        <span className="text-gray-900">
+                          {teacher.salaryRecord?.deductions ? `$${teacher.salaryRecord.deductions}` : '$0'}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-semibold text-gray-900">
+                        {teacher.salaryRecord ? 
+                          `$${calculateNetSalary(
+                            editingTeacher === teacher._id ? salaryForm.amount : teacher.salaryRecord.amount,
+                            editingTeacher === teacher._id ? salaryForm.bonus : teacher.salaryRecord.bonus,
+                            editingTeacher === teacher._id ? salaryForm.deductions : teacher.salaryRecord.deductions
+                          )}` : '-'
+                        }
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingTeacher === teacher._id ? (
+                        <label className="flex items-center space-x-2">
                           <input
-                            type="text"
-                            value={teacherSearchQuery}
-                            onChange={(e) => {
-                              setTeacherSearchQuery(e.target.value);
-                              setShowTeacherDropdown(true);
-                            }}
-                            onFocus={() => setShowTeacherDropdown(true)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            placeholder="Search for a teacher..."
-                            required
+                            type="checkbox"
+                            checked={salaryForm.paid}
+                            onChange={(e) => setSalaryForm({...salaryForm, paid: e.target.checked})}
+                            className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                           />
-                          {teacherSearchQuery && (
+                          <span className="text-sm">Paid</span>
+                        </label>
+                      ) : (
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(teacher)}`}>
+                          {getStatusText(teacher)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-2">
+                        {editingTeacher === teacher._id ? (
+                          <>
                             <button
-                              type="button"
-                              onClick={() => {
-                                setTeacherSearchQuery("");
-                                setIndividualSalaryData({ ...individualSalaryData, teacher: null });
-                                setShowTeacherDropdown(false);
-                              }}
-                              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              onClick={() => handleCreateOrUpdateSalary(teacher)}
+                              disabled={salaryLoading}
+                              className="p-1 text-green-600 hover:text-green-800"
+                              title="Save"
                             >
-                              <FiXCircle className="w-4 h-4" />
+                              <FiCheck className="w-4 h-4" />
                             </button>
-                          )}
-                        </div>
-
-                        {showTeacherDropdown && filteredTeachers.length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                            {filteredTeachers.map((teacher) => (
-                              <div
-                                key={teacher._id}
-                                onClick={() => selectTeacher(teacher)}
-                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                              >
-                                <div className="font-medium">{teacher.name}</div>
-                                <div className="text-sm text-gray-500">
-                                  Subject: {teacher.subject}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                            <button
+                              onClick={() => {
+                                setEditingTeacher(null);
+                                setSalaryForm({ amount: "", bonus: "", deductions: "", note: "", paid: false });
+                              }}
+                              className="p-1 text-gray-600 hover:text-gray-800"
+                              title="Cancel"
+                            >
+                              <FiX className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEditSalary(teacher)}
+                              className="p-1 text-blue-600 hover:text-blue-800"
+                              title={teacher.salaryRecord ? "Edit Salary" : "Add Salary"}
+                            >
+                              {teacher.salaryRecord ? <FiEdit2 className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
+                            </button>
+                            
+                            {teacher.salaryRecord && (
+                              <>
+                                <button
+                                  onClick={() => togglePaymentStatus(teacher)}
+                                  className={`p-1 ${teacher.salaryRecord.paid ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
+                                  title={teacher.salaryRecord.paid ? "Mark as Unpaid" : "Mark as Paid"}
+                                >
+                                  {teacher.salaryRecord.paid ? <FiX className="w-4 h-4" /> : <FiCheck className="w-4 h-4" />}
+                                </button>
+                                
+                                <button
+                                  onClick={() => handleDeleteSalary(teacher.salaryRecord._id)}
+                                  className="p-1 text-red-600 hover:text-red-800"
+                                  title="Delete Salary"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </>
                         )}
                       </div>
-
-                      {/* Salary Amount */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Salary Amount ($) *
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={individualSalaryData.amount}
-                          onChange={(e) => setIndividualSalaryData({ ...individualSalaryData, amount: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          placeholder="Enter salary amount..."
-                          required
-                        />
-                      </div>
-
-                      {/* Bonus */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Bonus ($)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={individualSalaryData.bonus}
-                          onChange={(e) => setIndividualSalaryData({ ...individualSalaryData, bonus: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          placeholder="Enter bonus amount..."
-                        />
-                      </div>
-
-                      {/* Deductions */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Deductions ($)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={individualSalaryData.deductions}
-                          onChange={(e) => setIndividualSalaryData({ ...individualSalaryData, deductions: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          placeholder="Enter deductions amount..."
-                        />
-                      </div>
-
-                      {/* Month */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Month *
-                        </label>
-                        <select
-                          value={individualSalaryData.month}
-                          onChange={(e) => setIndividualSalaryData({ ...individualSalaryData, month: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          required
-                        >
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i + 1} value={i + 1}>
-                              {getMonthName(i + 1)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Year */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Year *
-                        </label>
-                        <input
-                          type="number"
-                          min="2020"
-                          max="2030"
-                          value={individualSalaryData.year}
-                          onChange={(e) => setIndividualSalaryData({ ...individualSalaryData, year: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          required
-                        />
-                      </div>
-
-                      {/* Note */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Note
-                        </label>
-                        <textarea
-                          value={individualSalaryData.note}
-                          onChange={(e) => setIndividualSalaryData({ ...individualSalaryData, note: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          rows="3"
-                          placeholder="Optional note..."
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={salaryLoading || !individualSalaryData.teacher}
-                      className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
-                        salaryLoading || !individualSalaryData.teacher ? "opacity-60 cursor-not-allowed" : "hover:shadow-lg"
-                      } bg-green-600 text-white`}
-                    >
-                      {salaryLoading ? "Creating..." : "Create Salary Record"}
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {/* View Salary Tab Content */}
-            {activeTab === "view" && (
-              <div className="space-y-6">
-                {/* Search Controls */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Month
-                    </label>
-                    <select
-                      value={viewData.month}
-                      onChange={(e) => setViewData({ ...viewData, month: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          {getMonthName(i + 1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Year
-                    </label>
-                    <input
-                      type="number"
-                      min="2020"
-                      max="2030"
-                      value={viewData.year}
-                      onChange={(e) => setViewData({ ...viewData, year: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
-                  </div>
-
-                  <div className="flex items-end">
-                    <button
-                      onClick={handleViewSalaries}
-                      disabled={loadingRecords}
-                      className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
-                        loadingRecords ? "opacity-60 cursor-not-allowed" : "hover:shadow-lg"
-                      } bg-green-600 text-white`}
-                    >
-                      {loadingRecords ? "Loading..." : "Search Salaries"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Results */}
-                {teachersWithSalaries.length > 0 ? (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Salary Records for {getMonthName(viewData.month)} {viewData.year}
-                      </h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Teacher
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Subject
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Base Amount
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Bonus
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Deductions
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Total
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {teachersWithSalaries.map((teacherData) => (
-                            <tr key={teacherData._id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {teacherData.name}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {teacherData.subject}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {teacherData.salaryRecord ? `$${teacherData.salaryRecord.amount}` : 'No salary set'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {teacherData.salaryRecord ? `$${teacherData.salaryRecord.bonus || 0}` : '-'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">
-                                  {teacherData.salaryRecord ? `$${teacherData.salaryRecord.deductions || 0}` : '-'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {teacherData.salaryRecord ? `$${teacherData.salaryRecord.totalAmount}` : '-'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {teacherData.salaryRecord ? (
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    teacherData.salaryRecord.paid
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-red-100 text-red-800'
-                                  }`}>
-                                    {teacherData.salaryRecord.paid ? 'Paid' : 'Unpaid'}
-                                  </span>
-                                ) : (
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                    No Record
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                {teacherData.salaryRecord && (
-                                  <button
-                                    onClick={() => handlePaymentToggle(teacherData.salaryRecord)}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                                      teacherData.salaryRecord.paid
-                                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                        : 'bg-green-100 text-green-700 hover:bg-green-200'
-                                    }`}
-                                  >
-                                    Mark as {teacherData.salaryRecord.paid ? 'Unpaid' : 'Paid'}
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : !loadingRecords ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <FiSearch className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium">No teachers found</p>
-                    <p className="text-sm">
-                      Click "Search Salaries" to view teacher salary records for the selected period.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          {filteredTeachers.length === 0 && !loadingTeachers && (
+            <div className="text-center py-8 text-gray-500">
+              <FiUsers className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-lg font-medium">No teachers found</p>
+              <p className="text-sm">
+                {searchQuery || filterStatus !== 'all' 
+                  ? "Try adjusting your search or filter criteria."
+                  : "Loading teachers..."
+                }
+              </p>
+            </div>
+          )}
         </div>
+
+        {/* Note Input (when editing) */}
+        {editingTeacher && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mt-6 border border-gray-100">
+            <h3 className="text-lg font-semibold mb-4">Additional Note</h3>
+            <textarea
+              value={salaryForm.note}
+              onChange={(e) => setSalaryForm({...salaryForm, note: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              rows="3"
+              placeholder="Optional note about this salary..."
+            />
+          </div>
+        )}
       </div>
     </div>
   );
