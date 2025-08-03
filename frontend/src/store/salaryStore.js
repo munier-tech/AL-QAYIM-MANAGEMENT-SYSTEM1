@@ -116,6 +116,41 @@ export const useSalaryStore = create((set, get) => ({
     }
   },
 
+  // Bulk update salary payment status
+  bulkUpdateSalaryPaymentStatus: async (salaryUpdates) => {
+    try {
+      set({ loading: true });
+      const res = await axios.put('/salaries/bulk-update-payment', { salaryUpdates });
+      
+      // Update the local state for affected records
+      set((state) => ({
+        teachers: state.teachers.map(teacher => {
+          if (teacher.salaryRecord) {
+            const update = salaryUpdates.find(u => u.salaryId === teacher.salaryRecord._id);
+            if (update) {
+              return {
+                ...teacher,
+                salaryRecord: {
+                  ...teacher.salaryRecord,
+                  paid: update.paid,
+                  paidDate: update.paid ? (update.paidDate || new Date().toISOString()) : null
+                }
+              };
+            }
+          }
+          return teacher;
+        }),
+        loading: false,
+      }));
+      
+      return res.data;
+    } catch (err) {
+      console.error("Error bulk updating salary payment status:", err);
+      set({ error: err.response?.data?.message || err.message, loading: false });
+      throw err;
+    }
+  },
+
   // Delete salary record
   deleteSalaryRecord: async (salaryId) => {
     try {

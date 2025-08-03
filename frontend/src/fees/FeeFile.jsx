@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FiEdit2, FiTrash2, FiSearch, FiXCircle, FiDollarSign, FiUsers, FiCalendar } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiSearch, FiXCircle, FiDollarSign, FiUsers, FiCalendar, FiCheck, FiX } from "react-icons/fi";
 import { useFeeStore } from "../store/feeStore";
 import useStudentsStore from "../store/studentsStore";
 import useClassesStore from "../store/classesStore";
@@ -36,6 +36,11 @@ const FeeFile = () => {
   const [feeRecords, setFeeRecords] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [createMode, setCreateMode] = useState("class"); // "class" or "individual"
+  
+  // New state for bulk operations
+  const [selectedStudents, setSelectedStudents] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState(""); // "mark_paid" or "mark_unpaid"
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   const {
     createFeeRecord,
@@ -45,6 +50,7 @@ const FeeFile = () => {
     updateFeeRecord,
     deleteFeeRecord,
     getFeeStatistics,
+    bulkUpdateFeePaymentStatus,
     loading: feeLoading,
   } = useFeeStore();
 
@@ -169,6 +175,72 @@ const FeeFile = () => {
       handleViewFees();
     } catch (error) {
       console.error("Error updating payment status:", error);
+    }
+  };
+
+  // Handle bulk student selection
+  const handleStudentSelection = (studentId, feeRecordId) => {
+    const newSelected = new Set(selectedStudents);
+    const selectionKey = `${studentId}-${feeRecordId}`;
+    
+    if (newSelected.has(selectionKey)) {
+      newSelected.delete(selectionKey);
+    } else {
+      newSelected.add(selectionKey);
+    }
+    
+    setSelectedStudents(newSelected);
+    setShowBulkActions(newSelected.size > 0);
+  };
+
+  // Handle select all/none
+  const handleSelectAll = (selectAll) => {
+    if (selectAll) {
+      const allSelectable = new Set();
+      classStudents.forEach(student => {
+        if (student.feeRecord) {
+          allSelectable.add(`${student._id}-${student.feeRecord._id}`);
+        }
+      });
+      setSelectedStudents(allSelectable);
+      setShowBulkActions(allSelectable.size > 0);
+    } else {
+      setSelectedStudents(new Set());
+      setShowBulkActions(false);
+    }
+  };
+
+  // Handle bulk payment status update
+  const handleBulkPaymentUpdate = async (markAsPaid) => {
+    try {
+      const feeUpdates = [];
+      
+      selectedStudents.forEach(selectionKey => {
+        const [studentId, feeRecordId] = selectionKey.split('-');
+        feeUpdates.push({
+          feeId: feeRecordId,
+          paid: markAsPaid,
+          paidDate: markAsPaid ? new Date().toISOString() : null
+        });
+      });
+
+      if (feeUpdates.length === 0) {
+        alert("No students selected for bulk update.");
+        return;
+      }
+
+      await bulkUpdateFeePaymentStatus(feeUpdates);
+      
+      // Clear selections and refresh data
+      setSelectedStudents(new Set());
+      setShowBulkActions(false);
+      setBulkAction("");
+      
+      alert(`Successfully updated payment status for ${feeUpdates.length} students.`);
+      
+    } catch (error) {
+      console.error("Error bulk updating payment status:", error);
+      alert("Error updating payment status. Please try again.");
     }
   };
 
@@ -597,14 +669,81 @@ const FeeFile = () => {
                 {classStudents.length > 0 ? (
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                     <div className="p-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Fee Records for {viewData.selectedClass?.name} - {getMonthName(viewData.month)} {viewData.year}
-                      </h3>
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Fee Records for {viewData.selectedClass?.name} - {getMonthName(viewData.month)} {viewData.year}
+                        </h3>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="selectAll"
+                                checked={selectedStudents.size > 0 && selectedStudents.size === classStudents.filter(s => s.feeRecord).length}
+                                onChange={(e) => handleSelectAll(e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <label htmlFor="selectAll" className="text-sm text-gray-700">
+                                Select All ({classStudents.filter(s => s.feeRecord).length})
+                              </label>
+                            </div>
+                            <div className="flex items-center space-x-3 text-xs">
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-green-100 rounded-full border border-green-300"></div>
+                                <span className="text-green-700">
+                                  Paid: {classStudents.filter(s => s.feeRecord?.paid).length}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-red-100 rounded-full border border-red-300"></div>
+                                <span className="text-red-700">
+                                  Unpaid: {classStudents.filter(s => s.feeRecord && !s.feeRecord.paid).length}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <div className="w-3 h-3 bg-gray-100 rounded-full border border-gray-300"></div>
+                                <span className="text-gray-700">
+                                  No Record: {classStudents.filter(s => !s.feeRecord).length}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {showBulkActions && (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600">
+                                {selectedStudents.size} selected
+                              </span>
+                              <button
+                                onClick={() => handleBulkPaymentUpdate(true)}
+                                className="px-3 py-1 bg-green-100 text-green-700 rounded-md text-xs font-medium hover:bg-green-200 transition-colors"
+                              >
+                                <FiCheck className="w-3 h-3 inline mr-1" />
+                                Mark Paid
+                              </button>
+                              <button
+                                onClick={() => handleBulkPaymentUpdate(false)}
+                                className="px-3 py-1 bg-red-100 text-red-700 rounded-md text-xs font-medium hover:bg-red-200 transition-colors"
+                              >
+                                <FiX className="w-3 h-3 inline mr-1" />
+                                Mark Unpaid
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full">
                         <thead className="bg-gray-50">
                           <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <input
+                                type="checkbox"
+                                checked={selectedStudents.size > 0 && selectedStudents.size === classStudents.filter(s => s.feeRecord).length}
+                                onChange={(e) => handleSelectAll(e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Student
                             </th>
@@ -625,6 +764,16 @@ const FeeFile = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                           {classStudents.map((studentData) => (
                             <tr key={studentData._id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {studentData.feeRecord && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedStudents.has(`${studentData._id}-${studentData.feeRecord._id}`)}
+                                    onChange={() => handleStudentSelection(studentData._id, studentData.feeRecord._id)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                )}
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
                                   {studentData.fullname}

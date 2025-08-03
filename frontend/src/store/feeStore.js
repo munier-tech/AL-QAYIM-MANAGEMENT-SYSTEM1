@@ -116,6 +116,41 @@ export const useFeeStore = create((set, get) => ({
     }
   },
 
+  // Bulk update fee payment status
+  bulkUpdateFeePaymentStatus: async (feeUpdates) => {
+    try {
+      set({ loading: true });
+      const res = await axios.put('/fees/bulk-update-payment', { feeUpdates });
+      
+      // Update the local state for affected records
+      set((state) => ({
+        classStudents: state.classStudents.map(student => {
+          if (student.feeRecord) {
+            const update = feeUpdates.find(u => u.feeId === student.feeRecord._id);
+            if (update) {
+              return {
+                ...student,
+                feeRecord: {
+                  ...student.feeRecord,
+                  paid: update.paid,
+                  paidDate: update.paid ? (update.paidDate || new Date().toISOString()) : null
+                }
+              };
+            }
+          }
+          return student;
+        }),
+        loading: false,
+      }));
+      
+      return res.data;
+    } catch (err) {
+      console.error("Error bulk updating fee payment status:", err);
+      set({ error: err.response?.data?.message || err.message, loading: false });
+      throw err;
+    }
+  },
+
   // Delete fee record
   deleteFeeRecord: async (feeId) => {
     try {

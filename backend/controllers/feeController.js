@@ -280,6 +280,67 @@ export const deleteFeeRecord = async (req, res) => {
   }
 };
 
+// Bulk update fee payment status for multiple students
+export const bulkUpdateFeePaymentStatus = async (req, res) => {
+  try {
+    const { feeUpdates } = req.body; // Array of {feeId, paid, paidDate}
+
+    if (!feeUpdates || !Array.isArray(feeUpdates) || feeUpdates.length === 0) {
+      return res.status(400).json({ message: "Fadlan soo gudbi liiska diiwaannada lacagta" });
+    }
+
+    const updateResults = [];
+    const errors = [];
+
+    for (const update of feeUpdates) {
+      try {
+        const { feeId, paid, paidDate } = update;
+        
+        if (!feeId) {
+          errors.push({ feeId, error: "Fee ID is required" });
+          continue;
+        }
+
+        const feeRecord = await Fee.findById(feeId);
+        if (!feeRecord) {
+          errors.push({ feeId, error: "Fee record not found" });
+          continue;
+        }
+
+        // Update payment status
+        feeRecord.paid = paid;
+        feeRecord.paidDate = paid ? (paidDate ? new Date(paidDate) : new Date()) : null;
+        
+        await feeRecord.save();
+        await feeRecord.populate(['student', 'class']);
+        
+        updateResults.push({
+          feeId,
+          studentName: feeRecord.student.fullname,
+          className: feeRecord.class.name,
+          paid: feeRecord.paid,
+          paidDate: feeRecord.paidDate
+        });
+
+      } catch (error) {
+        errors.push({ feeId: update.feeId, error: error.message });
+      }
+    }
+
+    return res.status(200).json({
+      message: `${updateResults.length} diiwaanka lacagta si guul leh ayaa loo cusboonaysiiyay`,
+      updated: updateResults.length,
+      errors: errors.length,
+      results: updateResults,
+      errorDetails: errors
+    });
+
+  } catch (error) {
+    console.error("Error bulk updating fee payment status:", error);
+    return res.status(500).json({ message: "Khalad ayaa dhacay diiwaannada lacagta cusboonaysiinta" });
+  }
+};
+
 // Get fee statistics
 export const getFeeStatistics = async (req, res) => {
   try {

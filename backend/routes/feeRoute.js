@@ -7,7 +7,8 @@ import {
   getStudentFeeRecords, 
   updateFeeRecord, 
   deleteFeeRecord, 
-  getFeeStatistics 
+  getFeeStatistics,
+  bulkUpdateFeePaymentStatus
 } from "../controllers/feeController.js";
 import { protectedRoute } from "../middlewares/authorization.js";
 
@@ -30,6 +31,9 @@ router.get("/student/:studentId", protectedRoute, getStudentFeeRecords);
 
 // Update fee record (mark as paid/unpaid, update note)
 router.put("/update/:feeId", protectedRoute, updateFeeRecord);
+
+// Bulk update fee payment status for multiple records
+router.put("/bulk-update-payment", protectedRoute, bulkUpdateFeePaymentStatus);
 
 // Delete fee record
 router.delete("/delete/:feeId", protectedRoute, deleteFeeRecord);
