@@ -22,45 +22,14 @@ const PORT = process.env.PORT || 5000
 
 // Configure CORS for different environments
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://localhost:4173',
-      'https://al-qayim-management-system.vercel.app',
-      'https://al-qayim-management-system-git-main-munier-tech.vercel.app',
-      'https://al-qayim-management-system-munier-tech.vercel.app'
-    ];
-    
-    // Add custom frontend URL if provided
-    if (process.env.FRONTEND_URL) {
-      allowedOrigins.push(process.env.FRONTEND_URL);
-    }
-    
-    // Add Vercel preview URLs
-    if (process.env.VERCEL_URL) {
-      allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
-    }
-    
-    console.log('CORS - Request origin:', origin);
-    console.log('CORS - Allowed origins:', allowedOrigins);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      console.log('CORS - Origin not allowed:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL, "https://your-app-name.vercel.app"] 
+    : 'http://localhost:5173',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 };
 
 app.use(cors(corsOptions));
+
 app.use(express.json())
 app.use(cookieParser()); // ✅ This makes req.cookies available
 app.use(express.urlencoded({ extended: true }))
@@ -78,7 +47,9 @@ app.get('/api', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     cors: {
-      allowedOrigins: corsOptions.origin.toString(),
+      allowedOrigins: Array.isArray(corsOptions.origin) 
+        ? corsOptions.origin.join(', ') 
+        : corsOptions.origin,
       credentials: corsOptions.credentials
     }
   });
@@ -108,7 +79,6 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
-    console.log(`CORS enabled for: ${corsOptions.origin.toString()}`);
   });
 }
 
