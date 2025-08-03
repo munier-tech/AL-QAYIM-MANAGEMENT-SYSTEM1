@@ -13,6 +13,8 @@ import subjectsRouter from "./routes/subjectsRoute.js"
 import disciplineRouter from "./routes/disciplineRoute.js"
 import teachersAttendanceRouter from "./routes/teachersAttendanceRoute.js"
 import financeRouter from "./routes/financeRoute.js"
+import feeRouter from "./routes/feeRoute.js"
+import salaryRouter from "./routes/salaryRoute.js"
 import cookieParser from "cookie-parser";
 
 dotenv.config()
@@ -66,6 +68,8 @@ app.use("/api/subjects", subjectsRouter);
 app.use("/api/teachersAttendance", teachersAttendanceRouter);
 app.use("/api/discipline", disciplineRouter);
 app.use("/api/finance", financeRouter);
+app.use("/api/fees", feeRouter);
+app.use("/api/salaries", salaryRouter);
 
 // Connect to database immediately
 connectDb().then(() => {

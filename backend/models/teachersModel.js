@@ -36,7 +36,13 @@ export const teachersSchema = new mongoose.Schema({
     type: String,
     required: false,
     trim: true,
-  }
+  },
+  salaryRecords: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Salary",
+    },
+  ]
 }, {
   timestamps: true,
 });

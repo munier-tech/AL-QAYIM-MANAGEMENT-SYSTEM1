@@ -62,12 +62,13 @@ const menuItems = [
     text: 'Macalimiinta',
     icon: GraduationCap,
     path: '/teachers',
-    subItems: [
-      { text: 'Dhamaan Macalimiinta', path: '/getAllTeachers', icon: Users },
-      { text: 'Ku Biiri Macalin Cusub', path: '/addTeachers', icon: PlusCircle },
-      { text: 'Xaadiriska Macilimiinta', path: '/createTeacherAttendance', icon: CalendarCheck },
-      { text: 'Taarikhda Xaadiriska', path: '/GetTeacherAttendanceByDate', icon: Clock },
-    ]
+        subItems: [
+      { text: 'Dhamaan Macalimiinta', path: '/getAllTeachers', icon: Users },
+      { text: 'Ku Biiri Macalin Cusub', path: '/addTeachers', icon: PlusCircle },
+      { text: 'Xaadiriska Macilimiinta', path: '/createTeacherAttendance', icon: CalendarCheck },
+      { text: 'Taarikhda Xaadiriska', path: '/GetTeacherAttendanceByDate', icon: Clock },
+      { text: 'Mushaharka Macalimiinta', path: '/teacherSalaries', icon: DollarSign },
+    ]
   },
   {
     text: 'Fasalada',
@@ -101,11 +102,12 @@ const menuItems = [
     text: 'Arimaha Ardayga',
     icon: User2,
     path: '/student-affairs',
-    subItems: [
-      { text: 'Xogta Caafimadka', path: '/studentHealth', icon: HeartPulse },
-      { text: 'Xogta Imtixinaadka', path: '/studentExams', icon: BookCheck },
-      { text: 'Xogta Anshaxa', path: '/studentdiscipline', icon: Gavel },
-    ]
+        subItems: [
+      { text: 'Xogta Caafimadka', path: '/studentHealth', icon: HeartPulse },
+      { text: 'Xogta Imtixinaadka', path: '/studentExams', icon: BookCheck },
+      { text: 'Xogta Anshaxa', path: '/studentdiscipline', icon: Gavel },
+      { text: 'Lacagta Ardayga', path: '/studentFees', icon: DollarSign },
+    ]
   },
   {
     text: 'Xaadiris',
