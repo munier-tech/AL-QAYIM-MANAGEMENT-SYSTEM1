@@ -14,6 +14,7 @@ import disciplineRouter from "./routes/disciplineRoute.js"
 import teachersAttendanceRouter from "./routes/teachersAttendanceRoute.js"
 import financeRouter from "./routes/financeRoute.js"
 import feeRouter from "./routes/feeRoute.js"
+import familyFeeRouter from "./routes/familyFeeRoute.js"
 import salaryRouter from "./routes/salaryRoute.js"
 import cookieParser from "cookie-parser";
 
@@ -69,6 +70,7 @@ app.use("/api/teachersAttendance", teachersAttendanceRouter);
 app.use("/api/discipline", disciplineRouter);
 app.use("/api/finance", financeRouter);
 app.use("/api/fees", feeRouter);
+app.use("/api/family-fees", familyFeeRouter);
 app.use("/api/salaries", salaryRouter);
 
 // Connect to database immediately

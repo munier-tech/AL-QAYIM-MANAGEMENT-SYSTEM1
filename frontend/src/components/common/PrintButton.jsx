@@ -9,8 +9,17 @@ const PrintButton = ({
   children 
 }) => {
   const handlePrint = () => {
+    // Store current window state
+    const originalTitle = document.title;
+    const originalFocus = document.activeElement;
+    
     // Create a new window for printing
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    
+    if (!printWindow) {
+      alert('Please allow popups for printing to work properly');
+      return;
+    }
     
     // Generate the print content
     const printContent = `
@@ -213,14 +222,92 @@ const PrintButton = ({
       </html>
     `;
     
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    
-    // Wait for content to load then print
-    printWindow.onload = () => {
-      printWindow.print();
-      printWindow.close();
-    };
+    try {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+      // Handle print completion and cleanup
+      const handlePrintComplete = () => {
+        // Cleanup function
+        const cleanup = () => {
+          try {
+            if (printWindow && !printWindow.closed) {
+              printWindow.close();
+            }
+          } catch (e) {
+            console.log('Print window already closed');
+          }
+          
+          // Restore focus to original element
+          if (originalFocus && originalFocus.focus) {
+            try {
+              originalFocus.focus();
+            } catch (e) {
+              // Focus restoration failed, focus body instead
+              document.body.focus();
+            }
+          }
+          
+          // Restore original title
+          document.title = originalTitle;
+        };
+        
+        // Set up multiple cleanup triggers
+        setTimeout(cleanup, 1000); // Fallback cleanup
+        
+        // Listen for print window events
+        if (printWindow) {
+          printWindow.addEventListener('beforeunload', cleanup);
+          printWindow.addEventListener('unload', cleanup);
+          
+          // Handle focus events
+          window.addEventListener('focus', () => {
+            setTimeout(() => {
+              if (printWindow && printWindow.closed) {
+                cleanup();
+              }
+            }, 100);
+          }, { once: true });
+        }
+      };
+      
+      // Wait for content to load then print
+      printWindow.onload = () => {
+        try {
+          // Small delay to ensure content is fully rendered
+          setTimeout(() => {
+            printWindow.print();
+            handlePrintComplete();
+          }, 250);
+        } catch (error) {
+          console.error('Print error:', error);
+          handlePrintComplete();
+        }
+      };
+      
+      // Fallback if onload doesn't fire
+      setTimeout(() => {
+        if (printWindow && !printWindow.closed) {
+          try {
+            printWindow.print();
+            handlePrintComplete();
+          } catch (error) {
+            console.error('Fallback print error:', error);
+            handlePrintComplete();
+          }
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Print setup error:', error);
+      if (printWindow && !printWindow.closed) {
+        printWindow.close();
+      }
+      // Restore focus
+      if (originalFocus && originalFocus.focus) {
+        originalFocus.focus();
+      }
+    }
   };
 
   return (
