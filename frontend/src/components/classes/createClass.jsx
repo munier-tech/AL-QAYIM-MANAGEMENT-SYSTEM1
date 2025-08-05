@@ -111,7 +111,7 @@ const CreateClass = () => {
           <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
             <button
               type="button"
-              onClick={() => navigate('/classes')}
+              onClick={() => navigate('/getAll')}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               Jooji
@@ -122,7 +122,7 @@ const CreateClass = () => {
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               <FiSave className="mr-2" />
-              {isSubmitting ? 'Kaydinta...' : 'Kaydi Fasalka'}
+              {isSubmitting ? 'Kaydinaya...' : 'Kaydi Fasalka'}
             </button>
           </div>
         </form>

@@ -40,12 +40,10 @@ const useStudentsStore = create((set, get) => ({
     }
   },
 
-
   fetchStudentById: async (id) => {
     set({ loading: true });
     try {
       const response = await axios.get(`/students/getId/${id}`);
-      // backend returns { student: {...} }
       set({ selectedStudent: response.data.student, loading: false });
       return { success: true, student: response.data.student };
     } catch (error) {
@@ -149,17 +147,6 @@ const useStudentsStore = create((set, get) => ({
   },
 
   clearSelectedStudent: () => set({ selectedStudent: null }),
-
-  searchStudents: (query) => {
-    const { students } = get();
-    return students.filter(student =>
-      student.fullname?.toLowerCase().includes(query.toLowerCase()) ||
-      student.email?.toLowerCase().includes(query.toLowerCase()) ||
-      student.class?.name?.toLowerCase().includes(query.toLowerCase()) ||
-      student.motherNumber?.includes(query) ||
-      student.fatherNumber?.includes(query)
-    );
-  }
 }));
 
 export default useStudentsStore;

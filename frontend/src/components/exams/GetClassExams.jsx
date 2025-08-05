@@ -10,7 +10,7 @@ const translations = {
   title: "Natiijooyinka Imtixaannada Fasalka",
   searchTitle: "Raadi Natiijooyinka",
   selectClass: "Dooro Fasalka",
-  selectYear: "Dooro Sanadka",
+  selectYear: "Geli Sanadka Waxbarashada",
   selectSubject: "Dooro Mawduuca",
   selectExamType: "Dooro Nooca Imtixaanka",
   searchButton: "Raadi",
@@ -29,11 +29,6 @@ const translations = {
     "quiz": "Quiz",
     "assignment": "Assingment"
   },
-  academicYears: {
-    "2024/2025": "2024/2025",
-    "2023/2024": "2023/2024",
-    "2022/2023": "2022/2023"
-  }
 };
 
 const GetClassExams = () => {
@@ -47,6 +42,7 @@ const GetClassExams = () => {
     subjectId: "",
     examType: "",
   });
+  const [yearError, setYearError] = useState("");
 
   useEffect(() => {
     getAllSubjects();
@@ -54,11 +50,26 @@ const GetClassExams = () => {
   }, [getAllSubjects, fetchClasses]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+
+    // Validate academic year format on change
+    if (name === "academicYear") {
+      const yearRegex = /^\d{4}\/\d{4}$/;
+      if (!yearRegex.test(value) && value !== "") {
+        setYearError("Fadlan geli qaabkan: yyyy/yyyy (tusaale: 2024/2025)");
+      } else {
+        setYearError("");
+      }
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (yearError) {
+      alert("Fadlan sax qaladka sanadka waxbarashada.");
+      return;
+    }
     getExamsByClassAndYear(form);
   };
 
@@ -66,7 +77,7 @@ const GetClassExams = () => {
   const getGrade = (obtained, total) => {
     const percentage = (obtained / total) * 100;
     let grade, color;
-    
+
     if (percentage >= 90) {
       grade = 'A';
       color = 'text-green-600';
@@ -83,7 +94,7 @@ const GetClassExams = () => {
       grade = 'F';
       color = 'text-red-600';
     }
-    
+
     return <span className={`font-bold ${color}`}>{grade}</span>;
   };
 
@@ -98,7 +109,7 @@ const GetClassExams = () => {
         <h2 className="text-lg font-semibold mb-4 text-indigo-800 flex items-center">
           <FiSearch className="mr-2" /> {translations.searchTitle}
         </h2>
-        
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -124,18 +135,20 @@ const GetClassExams = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {translations.selectYear}
             </label>
-            <select
+            <input
+              type="text"
               name="academicYear"
               value={form.academicYear}
               onChange={handleChange}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="e.g., 2024/2025"
+              className={`w-full p-2 border rounded-lg focus:ring-2 ${
+                yearError ? "border-red-500 focus:ring-red-200" : "focus:ring-indigo-500 focus:border-indigo-500"
+              }`}
               required
-            >
-              <option value="">{translations.selectYear}</option>
-              {Object.entries(translations.academicYears).map(([key, value]) => (
-                <option key={key} value={key}>{value}</option>
-              ))}
-            </select>
+            />
+            {yearError && (
+              <p className="mt-1 text-sm text-red-600">{yearError}</p>
+            )}
           </div>
 
           <div className="relative">
@@ -178,7 +191,10 @@ const GetClassExams = () => {
 
           <button
             type="submit"
-            className="md:col-span-4 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center justify-center transition-colors"
+            disabled={yearError !== ""}
+            className={`md:col-span-4 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg flex items-center justify-center transition-colors ${
+              yearError && "opacity-50 cursor-not-allowed"
+            }`}
           >
             <FiSearch className="mr-2" /> {translations.searchButton}
           </button>
@@ -214,7 +230,7 @@ const GetClassExams = () => {
                   else if (percentage >= 80) grade = 'B';
                   else if (percentage >= 70) grade = 'C';
                   else if (percentage >= 60) grade = 'D';
-                  
+
                   return '<tr>' +
                     '<td>' + (exam?.student?.fullname || "N/A") + '</td>' +
                     '<td>' + (exam?.student?.class?.name || "") + '</td>' +
@@ -224,7 +240,7 @@ const GetClassExams = () => {
                     '<td>' + (exam?.date ? new Date(exam.date).toLocaleDateString('so-SO') : "N/A") + '</td>' +
                     '</tr>';
                 }).join('');
-                
+
                 return (
                   <PrintButton
                     title="Natiijooyinka Imtixaannada Fasalka"
