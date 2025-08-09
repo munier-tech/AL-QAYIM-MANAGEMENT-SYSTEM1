@@ -22,6 +22,9 @@ export const createSalaryRecord = async (req, res) => {
       return res.status(400).json({ message: "Mushaharka bishan macalinka horay ayaa loo abuuray" });
     }
 
+    // ✅ Calculate totalAmount
+    const totalAmount = Number(amount) + Number(bonus || 0) - Number(deductions || 0);
+
     const salaryRecord = new Salary({
       teacher,
       amount,
@@ -29,6 +32,7 @@ export const createSalaryRecord = async (req, res) => {
       year,
       bonus: bonus || 0,
       deductions: deductions || 0,
+      totalAmount, // ✅ include required field
       note: note || "",
       createdBy: req.user.id
     });
@@ -36,11 +40,11 @@ export const createSalaryRecord = async (req, res) => {
     await salaryRecord.save();
 
     // Populate the created record for response
-    await salaryRecord.populate(['teacher', 'createdBy']);
+    await salaryRecord.populate(["teacher", "createdBy"]);
 
-    return res.status(201).json({ 
-      message: "Diiwaanka mushaharka si guul leh ayaa loo abuuray", 
-      salaryRecord 
+    return res.status(201).json({
+      message: "Diiwaanka mushaharka si guul leh ayaa loo abuuray",
+      salaryRecord
     });
 
   } catch (error) {
@@ -48,6 +52,7 @@ export const createSalaryRecord = async (req, res) => {
     return res.status(500).json({ message: "Khalad ayaa dhacay diiwaanka mushaharka abuurista" });
   }
 };
+
 
 // Create salaries for all teachers
 export const createAllTeachersSalaries = async (req, res) => {

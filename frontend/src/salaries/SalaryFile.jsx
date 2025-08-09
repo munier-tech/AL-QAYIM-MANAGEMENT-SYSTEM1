@@ -4,12 +4,12 @@ import { useSalaryStore } from "../store/salaryStore";
 import useTeachersStore from "../store/teachersStore";
 
 const SalaryFile = () => {
-  // Individual salary management state
+  // Period & lists
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [teachersWithSalaries, setTeachersWithSalaries] = useState([]);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
-  
+
   // Salary editing state
   const [editingTeacher, setEditingTeacher] = useState(null);
   const [salaryForm, setSalaryForm] = useState({
@@ -17,10 +17,10 @@ const SalaryFile = () => {
     bonus: "",
     deductions: "",
     note: "",
-    paid: false
+    paid: false,
   });
 
-  // Search and filter
+  // Search & filter
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all"); // all, paid, unpaid, no-record
 
@@ -32,15 +32,17 @@ const SalaryFile = () => {
     loading: salaryLoading,
   } = useSalaryStore();
 
-  const { teachers, fetchTeachers } = useTeachersStore();
+  const { fetchTeachers } = useTeachersStore();
 
   useEffect(() => {
-    fetchTeachers();
+    // preload teachers (optional global list)
+    fetchTeachers().catch((err) => console.error("fetchTeachers error:", err));
   }, [fetchTeachers]);
 
   // Load teachers when month/year changes
   useEffect(() => {
     loadTeachersWithSalaries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth, selectedYear]);
 
   const loadTeachersWithSalaries = async () => {
@@ -56,23 +58,39 @@ const SalaryFile = () => {
     }
   };
 
+  const calculateNetSalary = (amount, bonus = 0, deductions = 0) => {
+    const a = parseFloat(amount || 0) || 0;
+    const b = parseFloat(bonus || 0) || 0;
+    const d = parseFloat(deductions || 0) || 0;
+    const result = a + b - d;
+    // show two decimals
+    return Number.isNaN(result) ? 0 : Math.round(result * 100) / 100;
+  };
+
   const handleCreateOrUpdateSalary = async (teacher) => {
-    if (!salaryForm.amount) {
-      alert("Please fill in the salary amount");
+    // ensure amount present and valid
+    if (!salaryForm.amount || isNaN(parseFloat(salaryForm.amount))) {
+      alert("Please fill in a valid salary amount");
       return;
     }
 
     try {
+      const amount = parseFloat(salaryForm.amount);
+      const bonus = parseFloat(salaryForm.bonus) || 0;
+      const deductions = parseFloat(salaryForm.deductions) || 0;
+      const totalAmount = calculateNetSalary(amount, bonus, deductions);
+
       const salaryData = {
         teacher: teacher._id,
-        amount: parseFloat(salaryForm.amount),
-        bonus: parseFloat(salaryForm.bonus) || 0,
-        deductions: parseFloat(salaryForm.deductions) || 0,
+        amount,
+        bonus,
+        deductions,
+        totalAmount, // included for frontend consistency; backend also recalculates
         month: selectedMonth,
         year: selectedYear,
-        note: salaryForm.note,
-        paid: salaryForm.paid,
-        paidDate: salaryForm.paid ? new Date().toISOString() : null
+        note: salaryForm.note || "",
+        paid: !!salaryForm.paid,
+        paidDate: salaryForm.paid ? new Date().toISOString() : null,
       };
 
       if (teacher.salaryRecord) {
@@ -81,9 +99,10 @@ const SalaryFile = () => {
           amount: salaryData.amount,
           bonus: salaryData.bonus,
           deductions: salaryData.deductions,
+          totalAmount: salaryData.totalAmount,
           note: salaryData.note,
           paid: salaryData.paid,
-          paidDate: salaryData.paidDate
+          paidDate: salaryData.paidDate,
         });
       } else {
         // Create new salary
@@ -96,6 +115,7 @@ const SalaryFile = () => {
       await loadTeachersWithSalaries();
     } catch (error) {
       console.error("Error saving salary:", error);
+      alert(error?.response?.data?.message || "Error saving salary");
     }
   };
 
@@ -103,11 +123,11 @@ const SalaryFile = () => {
     setEditingTeacher(teacher._id);
     if (teacher.salaryRecord) {
       setSalaryForm({
-        amount: teacher.salaryRecord.amount.toString(),
+        amount: teacher.salaryRecord.amount?.toString() || "",
         bonus: teacher.salaryRecord.bonus?.toString() || "",
         deductions: teacher.salaryRecord.deductions?.toString() || "",
         note: teacher.salaryRecord.note || "",
-        paid: teacher.salaryRecord.paid
+        paid: !!teacher.salaryRecord.paid,
       });
     } else {
       setSalaryForm({
@@ -115,52 +135,54 @@ const SalaryFile = () => {
         bonus: "",
         deductions: "",
         note: "",
-        paid: false
+        paid: false,
       });
     }
   };
 
   const handleDeleteSalary = async (salaryId) => {
     if (!confirm("Are you sure you want to delete this salary record?")) return;
-    
+
     try {
       await deleteSalaryRecord(salaryId);
       await loadTeachersWithSalaries();
     } catch (error) {
       console.error("Error deleting salary:", error);
+      alert(error?.response?.data?.message || "Error deleting salary");
     }
   };
 
   const togglePaymentStatus = async (teacher) => {
     if (!teacher.salaryRecord) return;
-    
+
     try {
       await updateSalaryRecord(teacher.salaryRecord._id, {
         paid: !teacher.salaryRecord.paid,
-        paidDate: !teacher.salaryRecord.paid ? new Date().toISOString() : null
+        paidDate: !teacher.salaryRecord.paid ? new Date().toISOString() : null,
       });
       await loadTeachersWithSalaries();
     } catch (error) {
       console.error("Error updating payment status:", error);
+      alert(error?.response?.data?.message || "Error updating payment status");
     }
   };
 
   // Filter teachers based on search and status
-  const filteredTeachers = teachersWithSalaries.filter(teacher => {
-    const matchesSearch = teacher.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
+  const filteredTeachers = teachersWithSalaries.filter((teacher) => {
+    const matchesSearch = (teacher.name || "").toLowerCase().includes(searchQuery.toLowerCase());
+
     if (filterStatus === "all") return matchesSearch;
     if (filterStatus === "paid") return matchesSearch && teacher.salaryRecord?.paid;
     if (filterStatus === "unpaid") return matchesSearch && teacher.salaryRecord && !teacher.salaryRecord.paid;
     if (filterStatus === "no-record") return matchesSearch && !teacher.salaryRecord;
-    
+
     return matchesSearch;
   });
 
   const getMonthName = (monthNum) => {
     const months = [
       "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
+      "July", "August", "September", "October", "November", "December",
     ];
     return months[monthNum - 1];
   };
@@ -175,10 +197,6 @@ const SalaryFile = () => {
     if (!teacher.salaryRecord) return "No Record";
     if (teacher.salaryRecord.paid) return "Paid";
     return "Unpaid";
-  };
-
-  const calculateNetSalary = (amount, bonus = 0, deductions = 0) => {
-    return parseFloat(amount || 0) + parseFloat(bonus || 0) - parseFloat(deductions || 0);
   };
 
   return (
@@ -219,7 +237,7 @@ const SalaryFile = () => {
                 min="2020"
                 max="2030"
                 value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                onChange={(e) => setSelectedYear(parseInt(e.target.value) || new Date().getFullYear())}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               />
             </div>
@@ -273,8 +291,8 @@ const SalaryFile = () => {
               Teacher Salaries - {getMonthName(selectedMonth)} {selectedYear}
             </h3>
             <p className="text-sm text-gray-600 mt-1">
-              {filteredTeachers.length} teacher{filteredTeachers.length !== 1 ? 's' : ''} 
-              {filterStatus !== 'all' && ` (${filterStatus.replace('-', ' ')})`}
+              {filteredTeachers.length} teacher{filteredTeachers.length !== 1 ? "s" : ""}
+              {filterStatus !== "all" && ` (${filterStatus.replace("-", " ")})`}
             </p>
           </div>
 
@@ -292,146 +310,156 @@ const SalaryFile = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredTeachers.map((teacher) => (
-                  <tr key={teacher._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900">{teacher.name}</div>
-                      <div className="text-sm text-gray-500">{teacher.subject || 'N/A'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingTeacher === teacher._id ? (
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={salaryForm.amount}
-                          onChange={(e) => setSalaryForm({...salaryForm, amount: e.target.value})}
-                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                          placeholder="Amount"
-                        />
-                      ) : (
-                        <span className="text-gray-900">
-                          {teacher.salaryRecord ? `$${teacher.salaryRecord.amount}` : '-'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingTeacher === teacher._id ? (
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={salaryForm.bonus}
-                          onChange={(e) => setSalaryForm({...salaryForm, bonus: e.target.value})}
-                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                          placeholder="0"
-                        />
-                      ) : (
-                        <span className="text-gray-900">
-                          {teacher.salaryRecord?.bonus ? `$${teacher.salaryRecord.bonus}` : '$0'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingTeacher === teacher._id ? (
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={salaryForm.deductions}
-                          onChange={(e) => setSalaryForm({...salaryForm, deductions: e.target.value})}
-                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                          placeholder="0"
-                        />
-                      ) : (
-                        <span className="text-gray-900">
-                          {teacher.salaryRecord?.deductions ? `$${teacher.salaryRecord.deductions}` : '$0'}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-gray-900">
-                        {teacher.salaryRecord ? 
-                          `$${calculateNetSalary(
-                            editingTeacher === teacher._id ? salaryForm.amount : teacher.salaryRecord.amount,
-                            editingTeacher === teacher._id ? salaryForm.bonus : teacher.salaryRecord.bonus,
-                            editingTeacher === teacher._id ? salaryForm.deductions : teacher.salaryRecord.deductions
-                          )}` : '-'
-                        }
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingTeacher === teacher._id ? (
-                        <label className="flex items-center space-x-2">
+                {filteredTeachers.map((teacher) => {
+                  const isEditing = editingTeacher === teacher._id;
+                  const displayAmount = isEditing ? salaryForm.amount : teacher.salaryRecord?.amount;
+                  const displayBonus = isEditing ? salaryForm.bonus : teacher.salaryRecord?.bonus;
+                  const displayDeductions = isEditing ? salaryForm.deductions : teacher.salaryRecord?.deductions;
+                  const net = teacher.salaryRecord || isEditing
+                    ? calculateNetSalary(displayAmount, displayBonus, displayDeductions)
+                    : null;
+
+                  return (
+                    <tr key={teacher._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{teacher.name}</div>
+                        <div className="text-sm text-gray-500">{teacher.subject || "N/A"}</div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {isEditing ? (
                           <input
-                            type="checkbox"
-                            checked={salaryForm.paid}
-                            onChange={(e) => setSalaryForm({...salaryForm, paid: e.target.checked})}
-                            className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            type="number"
+                            step="0.01"
+                            value={salaryForm.amount}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, amount: e.target.value })}
+                            className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                            placeholder="Amount"
                           />
-                          <span className="text-sm">Paid</span>
-                        </label>
-                      ) : (
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(teacher)}`}>
-                          {getStatusText(teacher)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        {editingTeacher === teacher._id ? (
-                          <>
-                            <button
-                              onClick={() => handleCreateOrUpdateSalary(teacher)}
-                              disabled={salaryLoading}
-                              className="p-1 text-green-600 hover:text-green-800"
-                              title="Save"
-                            >
-                              <FiCheck className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEditingTeacher(null);
-                                setSalaryForm({ amount: "", bonus: "", deductions: "", note: "", paid: false });
-                              }}
-                              className="p-1 text-gray-600 hover:text-gray-800"
-                              title="Cancel"
-                            >
-                              <FiX className="w-4 h-4" />
-                            </button>
-                          </>
                         ) : (
-                          <>
-                            <button
-                              onClick={() => handleEditSalary(teacher)}
-                              className="p-1 text-blue-600 hover:text-blue-800"
-                              title={teacher.salaryRecord ? "Edit Salary" : "Add Salary"}
-                            >
-                              {teacher.salaryRecord ? <FiEdit2 className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
-                            </button>
-                            
-                            {teacher.salaryRecord && (
-                              <>
-                                <button
-                                  onClick={() => togglePaymentStatus(teacher)}
-                                  className={`p-1 ${teacher.salaryRecord.paid ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}`}
-                                  title={teacher.salaryRecord.paid ? "Mark as Unpaid" : "Mark as Paid"}
-                                >
-                                  {teacher.salaryRecord.paid ? <FiX className="w-4 h-4" /> : <FiCheck className="w-4 h-4" />}
-                                </button>
-                                
-                                <button
-                                  onClick={() => handleDeleteSalary(teacher.salaryRecord._id)}
-                                  className="p-1 text-red-600 hover:text-red-800"
-                                  title="Delete Salary"
-                                >
-                                  <FiTrash2 className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                          </>
+                          <span className="text-gray-900">
+                            {teacher.salaryRecord ? `$${teacher.salaryRecord.amount}` : "-"}
+                          </span>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={salaryForm.bonus}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, bonus: e.target.value })}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span className="text-gray-900">
+                            {teacher.salaryRecord?.bonus ? `$${teacher.salaryRecord.bonus}` : "$0"}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={salaryForm.deductions}
+                            onChange={(e) => setSalaryForm({ ...salaryForm, deductions: e.target.value })}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                            placeholder="0"
+                          />
+                        ) : (
+                          <span className="text-gray-900">
+                            {teacher.salaryRecord?.deductions ? `$${teacher.salaryRecord.deductions}` : "$0"}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <span className="font-semibold text-gray-900">
+                          {net !== null ? `$${net}` : "-"}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {isEditing ? (
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={salaryForm.paid}
+                              onChange={(e) => setSalaryForm({ ...salaryForm, paid: e.target.checked })}
+                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            />
+                            <span className="text-sm">Paid</span>
+                          </label>
+                        ) : (
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(teacher)}`}>
+                            {getStatusText(teacher)}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex items-center space-x-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                onClick={() => handleCreateOrUpdateSalary(teacher)}
+                                disabled={salaryLoading}
+                                className="p-1 text-green-600 hover:text-green-800"
+                                title="Save"
+                              >
+                                <FiCheck className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingTeacher(null);
+                                  setSalaryForm({ amount: "", bonus: "", deductions: "", note: "", paid: false });
+                                }}
+                                className="p-1 text-gray-600 hover:text-gray-800"
+                                title="Cancel"
+                              >
+                                <FiX className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEditSalary(teacher)}
+                                className="p-1 text-blue-600 hover:text-blue-800"
+                                title={teacher.salaryRecord ? "Edit Salary" : "Add Salary"}
+                              >
+                                {teacher.salaryRecord ? <FiEdit2 className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
+                              </button>
+
+                              {teacher.salaryRecord && (
+                                <>
+                                  <button
+                                    onClick={() => togglePaymentStatus(teacher)}
+                                    className={`p-1 ${teacher.salaryRecord.paid ? "text-red-600 hover:text-red-800" : "text-green-600 hover:text-green-800"}`}
+                                    title={teacher.salaryRecord.paid ? "Mark as Unpaid" : "Mark as Paid"}
+                                  >
+                                    {teacher.salaryRecord.paid ? <FiX className="w-4 h-4" /> : <FiCheck className="w-4 h-4" />}
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteSalary(teacher.salaryRecord._id)}
+                                    className="p-1 text-red-600 hover:text-red-800"
+                                    title="Delete Salary"
+                                  >
+                                    <FiTrash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -441,10 +469,7 @@ const SalaryFile = () => {
               <FiUsers className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <p className="text-lg font-medium">No teachers found</p>
               <p className="text-sm">
-                {searchQuery || filterStatus !== 'all' 
-                  ? "Try adjusting your search or filter criteria."
-                  : "Loading teachers..."
-                }
+                {searchQuery || filterStatus !== "all" ? "Try adjusting your search or filter criteria." : "Loading teachers..."}
               </p>
             </div>
           )}
@@ -456,7 +481,7 @@ const SalaryFile = () => {
             <h3 className="text-lg font-semibold mb-4">Additional Note</h3>
             <textarea
               value={salaryForm.note}
-              onChange={(e) => setSalaryForm({...salaryForm, note: e.target.value})}
+              onChange={(e) => setSalaryForm({ ...salaryForm, note: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               rows="3"
               placeholder="Optional note about this salary..."
