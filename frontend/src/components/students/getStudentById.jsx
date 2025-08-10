@@ -17,7 +17,7 @@ import { useSubjectStore } from '../../store/subjectsStore';
 // Somali translations
 const translations = {
   search: {
-    placeholder: "Raadi arday magaciisa",
+    placeholder: "Raadi arday (magac ama ID)",
     noResults: "Lama helin arday",
     age: "Da'da",
     class: "Fasalka"
@@ -560,7 +560,7 @@ const DisciplineTab = () => (
               >
                 <div className="font-medium">{student.fullname}</div>
                 <div className="text-sm text-gray-500">
-                  {student.class?.name || translations.student.none} • {translations.search.age}: {student.age}
+                  {student.class?.name || translations.student.none} • {translations.search.age}: {student.age} • ID: {student._id?.slice(-6)}
                 </div>
               </div>
             ))}

@@ -60,9 +60,13 @@ const ClassDetails = () => {
     if (searchQuery.trim() === '') {
       setFilteredStudents(classStudents);
     } else {
-      const filtered = classStudents.filter(student =>
-        student.fullname.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const q = searchQuery.trim().toLowerCase();
+      const filtered = classStudents.filter((student) => {
+        const name = student.fullname?.toLowerCase() || '';
+        const id = student._id?.toLowerCase() || '';
+        const idLast6 = id.slice(-6);
+        return name.includes(q) || id.includes(q) || idLast6.includes(q);
+      });
       setFilteredStudents(filtered);
     }
   }, [searchQuery, classStudents]);
@@ -71,9 +75,13 @@ const ClassDetails = () => {
     if (addStudentSearch.trim() === '') {
       setFilteredAvailableStudents(availableStudents);
     } else {
-      const filtered = availableStudents.filter(student =>
-        student.fullname.toLowerCase().includes(addStudentSearch.toLowerCase())
-      );
+      const filtered = availableStudents.filter((student) => {
+        const q = addStudentSearch.trim().toLowerCase();
+        const name = student.fullname?.toLowerCase() || '';
+        const id = student._id?.toLowerCase() || '';
+        const idLast6 = id.slice(-6);
+        return name.includes(q) || id.includes(q) || idLast6.includes(q);
+      });
       setFilteredAvailableStudents(filtered);
     }
   }, [addStudentSearch, availableStudents]);
@@ -252,7 +260,7 @@ const ClassDetails = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Geli magaca ardayga..."
+                placeholder="Geli magaca ama ID-ga ardayga..."
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -292,7 +300,7 @@ const ClassDetails = () => {
                         {filteredAvailableStudents.length > 0 ? (
                           filteredAvailableStudents.map(student => (
                             <tr key={student._id}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.fullname}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.fullname} <span className="text-gray-400 ml-2">(ID: {student._id?.slice(-6)})</span></td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <button
                                   onClick={() => handleAssignStudent(student._id)}
@@ -350,7 +358,7 @@ const ClassDetails = () => {
                           transition={{ duration: 0.2 }}
                         >
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.fullname}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.fullname} <span className="text-gray-400 ml-2">(ID: {student._id?.slice(-6)})</span></td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.age}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.gender}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

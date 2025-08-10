@@ -41,7 +41,7 @@ const translations = {
     maleStudents: "Ardayda Labka",
     femaleStudents: "Ardayda Dheddigga",
   },
-  searchPlaceholder: "Raadi ardayga...",
+  searchPlaceholder: "Raadi arday (magac ama ID)...",
 };
 
 const GetAllStudents = () => {
@@ -296,7 +296,8 @@ const GetAllStudents = () => {
                 {filteredStudents.map((student) => (
                   <tr key={student._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                      {student.fullname}
+                      <div>{student.fullname}</div>
+                      <div className="text-sm text-gray-500">ID: {student._id?.slice(-6)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-500">
                       {student.age}

@@ -147,16 +147,33 @@ const useStudentsStore = create((set, get) => ({
 
   clearSelectedStudent: () => set({ selectedStudent: null }),
 
-  // <-- New searchStudents function -->
+  // Enhanced student search: supports name, class, and ID (full/partial)
   searchStudents: (query) => {
-    const { students } = get()
-    const lowerQuery = query.toLowerCase()
-    return students.filter(student =>
-      (student.name && student.name.toLowerCase().includes(lowerQuery)) ||
-      (student.email && student.email.toLowerCase().includes(lowerQuery)) ||
-      (student.phone && student.phone.includes(query)) ||
-      (student.class && student.class.name && student.class.name.toLowerCase().includes(lowerQuery))
-    )
+    const { students } = get();
+    const normalizedQuery = (query || '').trim().toLowerCase();
+
+    return students.filter((student) => {
+      const fullname = student.fullname?.toLowerCase() || '';
+      const className = student.class?.name?.toLowerCase() || '';
+      const id = student._id || '';
+      const idLower = id.toLowerCase();
+      const idLast6 = idLower.slice(-6);
+      const idFirst6 = idLower.slice(0, 6);
+
+      // Optional: allow phone search as before, but using correct fields
+      const mother = student.motherNumber || '';
+      const father = student.fatherNumber || '';
+
+      return (
+        (normalizedQuery && fullname.includes(normalizedQuery)) ||
+        (normalizedQuery && className.includes(normalizedQuery)) ||
+        (normalizedQuery && idLower.includes(normalizedQuery)) ||
+        (normalizedQuery && idLast6.includes(normalizedQuery)) ||
+        (normalizedQuery && idFirst6.includes(normalizedQuery)) ||
+        (mother && mother.includes(query)) ||
+        (father && father.includes(query))
+      );
+    });
   },
 }));
 
