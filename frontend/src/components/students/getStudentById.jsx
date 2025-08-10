@@ -1,17 +1,14 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { 
-  FiSearch, 
-  FiUser, 
-  FiDollarSign, 
-  FiEdit2, 
-  FiCheck, 
-  FiX, 
-  FiPlus,
-  FiActivity,
+import {
+  FiSearch,
+  FiUser,
+  FiDollarSign,
+  FiEdit2,
+  FiCheck,
+  FiX, FiActivity,
   FiBook,
-  FiAlertTriangle,
-  FiClock
+  FiAlertTriangle
 } from 'react-icons/fi';
 import useStudentsStore from '../../store/studentsStore';
 import useClassesStore from '../../store/classesStore';

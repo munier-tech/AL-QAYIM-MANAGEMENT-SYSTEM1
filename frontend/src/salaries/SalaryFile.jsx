@@ -1,495 +1,1041 @@
-import React, { useState, useEffect } from "react";
-import { FiEdit2, FiTrash2, FiSearch, FiDollarSign, FiUsers, FiPlus, FiCheck, FiX } from "react-icons/fi";
-import { useSalaryStore } from "../store/salaryStore";
-import useTeachersStore from "../store/teachersStore";
+import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import {
+  Box,
+  Typography,
+  Button,
+  TextField,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Grid,
+  Tab,
+  Tabs,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Tooltip,
+  Avatar,
+  Stack,
+  Badge,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Paid as PaidIcon,
+  AttachMoney as AttachMoneyIcon,
+  People as PeopleIcon,
+  BarChart as BarChartIcon,
+  CalendarMonth as CalendarMonthIcon,
+  FilterAlt as FilterIcon,
+} from '@mui/icons-material';
+import { useSalaryStore } from '../store/salaryStore';
+
+const translations = {
+  so: {
+    title: 'Maamulka Mushaharka',
+    addSalary: 'Ku Dar Diiwaan Mushahar',
+    addAllSalaries: 'Ku Dar Mushahar Macalimiinta Oo Dhan',
+    teacher: 'Macalin',
+    amount: 'Qadarka',
+    month: 'Bisha',
+    year: 'Sanadka',
+    bonus: 'AbaalMarin',
+    deductions: 'Lacag ka Goosasho',
+    note: 'Qoraal',
+    paid: 'La Bixiyay',
+    unpaid: 'Aan La Bixin',
+    markAsPaid: 'Calaamadee in La Bixiyay',
+    edit: 'Wax Ka Beddel',
+    delete: 'Tirtir',
+    cancel: 'Jooji',
+    save: 'Kaydi',
+    totalSalaries: 'Wadarta Mushaharka',
+    paidSalaries: 'Mushaharka La Bixiyay',
+    unpaidSalaries: 'Mushaharka Aan La Bixin',
+    totalAmount: 'Wadarta Qadarka',
+    paidAmount: 'Qadar La Bixiyay',
+    unpaidAmount: 'Qadar Aan La Bixin',
+    salaryRecords: 'Diiwaanka Mushaharka',
+    statistics: 'Tirakoob',
+    allTeachers: 'Macalimiinta Oo Dhan',
+    createSuccess: 'Diiwaanka mushahara si guul leh ayaa loo abuuray',
+    updateSuccess: 'Diiwaanka mushahara si guul leh ayaa loo cusboonaysiiyay',
+    deleteSuccess: 'Diiwaanka mushahara si guul leh ayaa loo tirtiray',
+    markPaidSuccess: 'Mushaharka si guul leh ayaa loo calaamadeeyay in la bixiyay',
+    selectTeacher: 'Xulo Macalin',
+    selectMonth: 'Xulo Bisha',
+    selectYear: 'Xulo Sanadka',
+    confirmDelete: 'Ma hubtaa inaad rabto inaad tirtirto diiwaankan mushahara?',
+    requiredField: 'Goobtan waa lagama maarmaanka ah',
+    loading: 'Soo dejinta...',
+    noRecords: 'Lama helin diiwaan mushahar',
+    noTeachers: 'Macalimiin lama helin',
+    filter: 'Filter',
+    clear: 'Nadiif',
+    total: 'Wadarta',
+    status: 'Xaalad',
+    actions: 'Tallaabooyin',
+    salaryStatus: 'Xaaladda Mushaharka',
+    currentPeriod: 'Mudada Hadda',
+  },
+};
+
+const months = [
+  { value: 1, label: { so: 'Janaayo' }, short: 'Jan' },
+  { value: 2, label: { so: 'Febraayo' }, short: 'Feb' },
+  { value: 3, label: { so: 'Maarso' }, short: 'Mar' },
+  { value: 4, label: { so: 'Abriil' }, short: 'Apr' },
+  { value: 5, label: { so: 'Maajo' }, short: 'May' },
+  { value: 6, label: { so: 'Juun' }, short: 'Jun' },
+  { value: 7, label: { so: 'Luuliyo' }, short: 'Jul' },
+  { value: 8, label: { so: 'Agoosto' }, short: 'Aug' },
+  { value: 9, label: { so: 'Sebtembar' }, short: 'Sep' },
+  { value: 10, label: { so: 'Oktoobar' }, short: 'Oct' },
+  { value: 11, label: { so: 'Nofembar' }, short: 'Nov' },
+  { value: 12, label: { so: 'Desembar' }, short: 'Dec' },
+];
+
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
 const SalaryFile = () => {
-  // Period & lists
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [teachersWithSalaries, setTeachersWithSalaries] = useState([]);
-  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const language = 'so';
+  const t = translations[language];
 
-  // Salary editing state
-  const [editingTeacher, setEditingTeacher] = useState(null);
-  const [salaryForm, setSalaryForm] = useState({
-    amount: "",
-    bonus: "",
-    deductions: "",
-    note: "",
+  const {
+    salaryRecords,
+    teachers,
+    salaryStatistics,
+    loading,
+    createSalaryRecord,
+    createAllTeachersSalaries,
+    getAllTeachers,
+    getAllSalaryRecords,
+    updateSalaryRecord,
+    deleteSalaryRecord,
+    getSalaryStatistics,
+  } = useSalaryStore();
+
+  const [tabValue, setTabValue] = useState(0);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [openBulkDialog, setOpenBulkDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [currentRecord, setCurrentRecord] = useState(null);
+  const [filters, setFilters] = useState({
+    month: new Date().getMonth() + 1,
+    year: currentYear,
+    paid: '',
+  });
+
+  const [formData, setFormData] = useState({
+    teacher: '',
+    amount: '',
+    month: filters.month,
+    year: filters.year,
+    bonus: '',
+    deductions: '',
+    note: '',
     paid: false,
   });
 
-  // Search & filter
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all"); // all, paid, unpaid, no-record
-
-  const {
-    createSalaryRecord,
-    getAllTeachers,
-    updateSalaryRecord,
-    deleteSalaryRecord,
-    loading: salaryLoading,
-  } = useSalaryStore();
-
-  const { fetchTeachers } = useTeachersStore();
+  const [bulkFormData, setBulkFormData] = useState({
+    amount: '',
+    month: filters.month,
+    year: filters.year,
+    bonus: '',
+    deductions: '',
+    note: '',
+  });
 
   useEffect(() => {
-    // preload teachers (optional global list)
-    fetchTeachers().catch((err) => console.error("fetchTeachers error:", err));
-  }, [fetchTeachers]);
+    getAllSalaryRecords(filters);
+    getSalaryStatistics(filters.month, filters.year);
+    getAllTeachers(filters.month, filters.year);
+  }, [filters]);
 
-  // Load teachers when month/year changes
-  useEffect(() => {
-    loadTeachersWithSalaries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, selectedYear]);
-
-  const loadTeachersWithSalaries = async () => {
-    setLoadingTeachers(true);
-    try {
-      const response = await getAllTeachers(selectedMonth, selectedYear);
-      setTeachersWithSalaries(response || []);
-    } catch (error) {
-      console.error("Error loading teachers:", error);
-      setTeachersWithSalaries([]);
-    } finally {
-      setLoadingTeachers(false);
-    }
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
   };
 
-  const calculateNetSalary = (amount, bonus = 0, deductions = 0) => {
-    const a = parseFloat(amount || 0) || 0;
-    const b = parseFloat(bonus || 0) || 0;
-    const d = parseFloat(deductions || 0) || 0;
-    const result = a + b - d;
-    // show two decimals
-    return Number.isNaN(result) ? 0 : Math.round(result * 100) / 100;
-  };
-
-  const handleCreateOrUpdateSalary = async (teacher) => {
-    // ensure amount present and valid
-    if (!salaryForm.amount || isNaN(parseFloat(salaryForm.amount))) {
-      alert("Please fill in a valid salary amount");
-      return;
-    }
-
-    try {
-      const amount = parseFloat(salaryForm.amount);
-      const bonus = parseFloat(salaryForm.bonus) || 0;
-      const deductions = parseFloat(salaryForm.deductions) || 0;
-      const totalAmount = calculateNetSalary(amount, bonus, deductions);
-
-      const salaryData = {
-        teacher: teacher._id,
-        amount,
-        bonus,
-        deductions,
-        totalAmount, // included for frontend consistency; backend also recalculates
-        month: selectedMonth,
-        year: selectedYear,
-        note: salaryForm.note || "",
-        paid: !!salaryForm.paid,
-        paidDate: salaryForm.paid ? new Date().toISOString() : null,
-      };
-
-      if (teacher.salaryRecord) {
-        // Update existing salary
-        await updateSalaryRecord(teacher.salaryRecord._id, {
-          amount: salaryData.amount,
-          bonus: salaryData.bonus,
-          deductions: salaryData.deductions,
-          totalAmount: salaryData.totalAmount,
-          note: salaryData.note,
-          paid: salaryData.paid,
-          paidDate: salaryData.paidDate,
-        });
-      } else {
-        // Create new salary
-        await createSalaryRecord(salaryData);
-      }
-
-      // Reset form and reload teachers
-      setEditingTeacher(null);
-      setSalaryForm({ amount: "", bonus: "", deductions: "", note: "", paid: false });
-      await loadTeachersWithSalaries();
-    } catch (error) {
-      console.error("Error saving salary:", error);
-      alert(error?.response?.data?.message || "Error saving salary");
-    }
-  };
-
-  const handleEditSalary = (teacher) => {
-    setEditingTeacher(teacher._id);
-    if (teacher.salaryRecord) {
-      setSalaryForm({
-        amount: teacher.salaryRecord.amount?.toString() || "",
-        bonus: teacher.salaryRecord.bonus?.toString() || "",
-        deductions: teacher.salaryRecord.deductions?.toString() || "",
-        note: teacher.salaryRecord.note || "",
-        paid: !!teacher.salaryRecord.paid,
+  const handleOpenDialog = (record = null) => {
+    setCurrentRecord(record);
+    if (record) {
+      setFormData({
+        teacher: record.teacher?._id || '',
+        amount: record.amount,
+        month: record.month,
+        year: record.year,
+        bonus: record.bonus,
+        deductions: record.deductions,
+        note: record.note,
+        paid: record.paid,
       });
     } else {
-      setSalaryForm({
-        amount: "",
-        bonus: "",
-        deductions: "",
-        note: "",
+      setFormData({
+        teacher: '',
+        amount: '',
+        month: filters.month,
+        year: filters.year,
+        bonus: '',
+        deductions: '',
+        note: '',
         paid: false,
       });
     }
+    setOpenDialog(true);
   };
 
-  const handleDeleteSalary = async (salaryId) => {
-    if (!confirm("Are you sure you want to delete this salary record?")) return;
+  const handleOpenBulkDialog = () => {
+    setBulkFormData({
+      amount: '',
+      month: filters.month,
+      year: filters.year,
+      bonus: '',
+      deductions: '',
+      note: '',
+    });
+    setOpenBulkDialog(true);
+  };
 
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setOpenBulkDialog(false);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleBulkInputChange = (e) => {
+    const { name, value } = e.target;
+    setBulkFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      month: new Date().getMonth() + 1,
+      year: currentYear,
+      paid: '',
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      await deleteSalaryRecord(salaryId);
-      await loadTeachersWithSalaries();
+      if (currentRecord) {
+        await updateSalaryRecord(currentRecord._id, formData);
+        toast.success(t.updateSuccess);
+      } else {
+        await createSalaryRecord(formData);
+        toast.success(t.createSuccess);
+      }
+      handleCloseDialog();
     } catch (error) {
-      console.error("Error deleting salary:", error);
-      alert(error?.response?.data?.message || "Error deleting salary");
+      console.error('Error saving salary record:', error);
     }
   };
 
-  const togglePaymentStatus = async (teacher) => {
-    if (!teacher.salaryRecord) return;
-
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
     try {
-      await updateSalaryRecord(teacher.salaryRecord._id, {
-        paid: !teacher.salaryRecord.paid,
-        paidDate: !teacher.salaryRecord.paid ? new Date().toISOString() : null,
-      });
-      await loadTeachersWithSalaries();
+      await createAllTeachersSalaries(bulkFormData);
+      toast.success(t.createSuccess);
+      handleCloseDialog();
     } catch (error) {
-      console.error("Error updating payment status:", error);
-      alert(error?.response?.data?.message || "Error updating payment status");
+      console.error('Error creating bulk salaries:', error);
     }
   };
 
-  // Filter teachers based on search and status
-  const filteredTeachers = teachersWithSalaries.filter((teacher) => {
-    const matchesSearch = (teacher.name || "").toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (filterStatus === "all") return matchesSearch;
-    if (filterStatus === "paid") return matchesSearch && teacher.salaryRecord?.paid;
-    if (filterStatus === "unpaid") return matchesSearch && teacher.salaryRecord && !teacher.salaryRecord.paid;
-    if (filterStatus === "no-record") return matchesSearch && !teacher.salaryRecord;
-
-    return matchesSearch;
-  });
-
-  const getMonthName = (monthNum) => {
-    const months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
-    return months[monthNum - 1];
+  const handleMarkAsPaid = async (record) => {
+    try {
+      await updateSalaryRecord(record._id, { paid: true });
+      toast.success(t.markPaidSuccess);
+    } catch (error) {
+      console.error('Error marking salary as paid:', error);
+    }
   };
 
-  const getStatusColor = (teacher) => {
-    if (!teacher.salaryRecord) return "bg-gray-100 text-gray-800";
-    if (teacher.salaryRecord.paid) return "bg-green-100 text-green-800";
-    return "bg-red-100 text-red-800";
+  const handleDelete = async () => {
+    try {
+      await deleteSalaryRecord(currentRecord._id);
+      toast.success(t.deleteSuccess);
+      setOpenDeleteDialog(false);
+    } catch (error) {
+      console.error('Error deleting salary record:', error);
+    }
   };
 
-  const getStatusText = (teacher) => {
-    if (!teacher.salaryRecord) return "No Record";
-    if (teacher.salaryRecord.paid) return "Paid";
-    return "Unpaid";
+  const handleOpenDeleteDialog = (record) => {
+    setCurrentRecord(record);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+  };
+
+  const getMonthName = (monthValue) => {
+    const month = months.find(m => m.value === monthValue);
+    return month ? month.label[language] : '';
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-          <div className="flex items-center space-x-3 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <FiDollarSign className="w-6 h-6 text-green-600" />
-            </div>
-            <h1 className="text-3xl font-bold">Individual Teacher Salary Management</h1>
-          </div>
-          <p className="mt-1 text-sm opacity-90">Set and manage individual teacher salaries with precise control.</p>
-        </div>
-
-        {/* Period Selection */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-          <h2 className="text-lg font-semibold mb-4">Select Period</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Month</label>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+    <Box sx={{ p: 3, backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      {/* Header Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" component="h1" sx={{ 
+          fontWeight: 'bold',
+          color: 'primary.main',
+          mb: 2
+        }}>
+          {t.title}
+        </Typography>
+        
+        {/* Period Selector Card */}
+        <Card elevation={0} sx={{ 
+          backgroundColor: 'primary.light', 
+          p: 3,
+          mb: 3,
+          borderRadius: '12px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+        }}>
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+            <Avatar sx={{ bgcolor: 'primary.main' }}>
+              <CalendarMonthIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">
+                {t.currentPeriod}
+              </Typography>
+              <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                {getMonthName(filters.month)} {filters.year}
+              </Typography>
+            </Box>
+          </Stack>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>{t.month}</InputLabel>
+                <Select
+                  value={filters.month}
+                  onChange={(e) => setFilters({...filters, month: e.target.value})}
+                  label={t.month}
+                  sx={{ backgroundColor: 'white' }}
+                >
+                  {months.map((month) => (
+                    <MenuItem key={month.value} value={month.value}>
+                      {month.label[language]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>{t.year}</InputLabel>
+                <Select
+                  value={filters.year}
+                  onChange={(e) => setFilters({...filters, year: e.target.value})}
+                  label={t.year}
+                  sx={{ backgroundColor: 'white' }}
+                >
+                  {years.map((year) => (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={4}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenDialog()}
+                fullWidth
+                sx={{ height: '40px' }}
               >
-                {Array.from({ length: 12 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>{getMonthName(i + 1)}</option>
-                ))}
-              </select>
-            </div>
+                {t.addSalary}
+              </Button>
+            </Grid>
+          </Grid>
+        </Card>
+      </Box>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
-              <input
-                type="number"
-                min="2020"
-                max="2030"
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value) || new Date().getFullYear())}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
+      {/* Statistics Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            height: '100%',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            borderLeft: '4px solid',
+            borderLeftColor: 'primary.main'
+          }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main' }}>
+                  <PeopleIcon />
+                </Avatar>
+                <Box>
+                  <Typography color="text.secondary" variant="subtitle2">
+                    {t.totalSalaries}
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                    {salaryStatistics?.totalSalaries || 0}
+                  </Typography>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            height: '100%',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            borderLeft: '4px solid',
+            borderLeftColor: 'success.main'
+          }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Avatar sx={{ bgcolor: 'success.light', color: 'success.main' }}>
+                  <PaidIcon />
+                </Avatar>
+                <Box>
+                  <Typography color="text.secondary" variant="subtitle2">
+                    {t.paidSalaries}
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                    {salaryStatistics?.paidSalaries || 0}
+                  </Typography>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={4}>
+          <Card sx={{ 
+            height: '100%',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            borderLeft: '4px solid',
+            borderLeftColor: 'error.main'
+          }}>
+            <CardContent>
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Avatar sx={{ bgcolor: 'error.light', color: 'error.main' }}>
+                  <AttachMoneyIcon />
+                </Avatar>
+                <Box>
+                  <Typography color="text.secondary" variant="subtitle2">
+                    {t.unpaidSalaries}
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'error.main' }}>
+                    {salaryStatistics?.unpaidSalaries || 0}
+                  </Typography>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
-            <div className="flex items-end">
-              <button
-                onClick={loadTeachersWithSalaries}
-                disabled={loadingTeachers}
-                className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-              >
-                {loadingTeachers ? "Loading..." : "Load Teachers"}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search teachers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                />
-              </div>
-            </div>
-            <div>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              >
-                <option value="all">All Teachers</option>
-                <option value="paid">Paid</option>
-                <option value="unpaid">Unpaid</option>
-                <option value="no-record">No Record</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Teachers List */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold">
-              Teacher Salaries - {getMonthName(selectedMonth)} {selectedYear}
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              {filteredTeachers.length} teacher{filteredTeachers.length !== 1 ? "s" : ""}
-              {filterStatus !== "all" && ` (${filterStatus.replace("-", " ")})`}
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teacher</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Base Salary</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bonus</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deductions</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Net Salary</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredTeachers.map((teacher) => {
-                  const isEditing = editingTeacher === teacher._id;
-                  const displayAmount = isEditing ? salaryForm.amount : teacher.salaryRecord?.amount;
-                  const displayBonus = isEditing ? salaryForm.bonus : teacher.salaryRecord?.bonus;
-                  const displayDeductions = isEditing ? salaryForm.deductions : teacher.salaryRecord?.deductions;
-                  const net = teacher.salaryRecord || isEditing
-                    ? calculateNetSalary(displayAmount, displayBonus, displayDeductions)
-                    : null;
-
-                  return (
-                    <tr key={teacher._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{teacher.name}</div>
-                        <div className="text-sm text-gray-500">{teacher.subject || "N/A"}</div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={salaryForm.amount}
-                            onChange={(e) => setSalaryForm({ ...salaryForm, amount: e.target.value })}
-                            className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                            placeholder="Amount"
-                          />
-                        ) : (
-                          <span className="text-gray-900">
-                            {teacher.salaryRecord ? `$${teacher.salaryRecord.amount}` : "-"}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={salaryForm.bonus}
-                            onChange={(e) => setSalaryForm({ ...salaryForm, bonus: e.target.value })}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                            placeholder="0"
-                          />
-                        ) : (
-                          <span className="text-gray-900">
-                            {teacher.salaryRecord?.bonus ? `$${teacher.salaryRecord.bonus}` : "$0"}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={salaryForm.deductions}
-                            onChange={(e) => setSalaryForm({ ...salaryForm, deductions: e.target.value })}
-                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                            placeholder="0"
-                          />
-                        ) : (
-                          <span className="text-gray-900">
-                            {teacher.salaryRecord?.deductions ? `$${teacher.salaryRecord.deductions}` : "$0"}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span className="font-semibold text-gray-900">
-                          {net !== null ? `$${net}` : "-"}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {isEditing ? (
-                          <label className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={salaryForm.paid}
-                              onChange={(e) => setSalaryForm({ ...salaryForm, paid: e.target.checked })}
-                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                            />
-                            <span className="text-sm">Paid</span>
-                          </label>
-                        ) : (
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(teacher)}`}>
-                            {getStatusText(teacher)}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          {isEditing ? (
-                            <>
-                              <button
-                                onClick={() => handleCreateOrUpdateSalary(teacher)}
-                                disabled={salaryLoading}
-                                className="p-1 text-green-600 hover:text-green-800"
-                                title="Save"
-                              >
-                                <FiCheck className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingTeacher(null);
-                                  setSalaryForm({ amount: "", bonus: "", deductions: "", note: "", paid: false });
-                                }}
-                                className="p-1 text-gray-600 hover:text-gray-800"
-                                title="Cancel"
-                              >
-                                <FiX className="w-4 h-4" />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleEditSalary(teacher)}
-                                className="p-1 text-blue-600 hover:text-blue-800"
-                                title={teacher.salaryRecord ? "Edit Salary" : "Add Salary"}
-                              >
-                                {teacher.salaryRecord ? <FiEdit2 className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
-                              </button>
-
-                              {teacher.salaryRecord && (
-                                <>
-                                  <button
-                                    onClick={() => togglePaymentStatus(teacher)}
-                                    className={`p-1 ${teacher.salaryRecord.paid ? "text-red-600 hover:text-red-800" : "text-green-600 hover:text-green-800"}`}
-                                    title={teacher.salaryRecord.paid ? "Mark as Unpaid" : "Mark as Paid"}
-                                  >
-                                    {teacher.salaryRecord.paid ? <FiX className="w-4 h-4" /> : <FiCheck className="w-4 h-4" />}
-                                  </button>
-
-                                  <button
-                                    onClick={() => handleDeleteSalary(teacher.salaryRecord._id)}
-                                    className="p-1 text-red-600 hover:text-red-800"
-                                    title="Delete Salary"
-                                  >
-                                    <FiTrash2 className="w-4 h-4" />
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredTeachers.length === 0 && !loadingTeachers && (
-            <div className="text-center py-8 text-gray-500">
-              <FiUsers className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-lg font-medium">No teachers found</p>
-              <p className="text-sm">
-                {searchQuery || filterStatus !== "all" ? "Try adjusting your search or filter criteria." : "Loading teachers..."}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Note Input (when editing) */}
-        {editingTeacher && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mt-6 border border-gray-100">
-            <h3 className="text-lg font-semibold mb-4">Additional Note</h3>
-            <textarea
-              value={salaryForm.note}
-              onChange={(e) => setSalaryForm({ ...salaryForm, note: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              rows="3"
-              placeholder="Optional note about this salary..."
+      {/* Main Content Area */}
+      <Card sx={{ 
+        borderRadius: '12px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+        overflow: 'hidden'
+      }}>
+        {/* Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs 
+            value={tabValue} 
+            onChange={handleTabChange}
+            variant="fullWidth"
+            sx={{
+              '& .MuiTabs-indicator': {
+                height: 4,
+                backgroundColor: 'primary.main'
+              }
+            }}
+          >
+            <Tab 
+              icon={<PeopleIcon />} 
+              label={t.salaryRecords} 
+              sx={{ fontWeight: 'bold' }}
             />
-          </div>
-        )}
-      </div>
-    </div>
+            <Tab 
+              icon={<BarChartIcon />} 
+              label={t.statistics} 
+              sx={{ fontWeight: 'bold' }}
+            />
+            <Tab 
+              icon={<CalendarMonthIcon />} 
+              label={t.allTeachers} 
+              sx={{ fontWeight: 'bold' }}
+            />
+          </Tabs>
+        </Box>
+
+        {/* Tab Content */}
+        <Box sx={{ p: 3 }}>
+          {/* Salary Records Tab */}
+          {tabValue === 0 && (
+            <>
+              <Box sx={{ 
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mb: 3
+              }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                  {t.salaryRecords} - {getMonthName(filters.month)} {filters.year}
+                </Typography>
+                
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<FilterIcon />}
+                    onClick={handleOpenBulkDialog}
+                  >
+                    {t.addAllSalaries}
+                  </Button>
+                  
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>{t.status}</InputLabel>
+                    <Select
+                      value={filters.paid}
+                      onChange={(e) => setFilters({...filters, paid: e.target.value})}
+                      label={t.status}
+                    >
+                      <MenuItem value="">All</MenuItem>
+                      <MenuItem value="true">{t.paid}</MenuItem>
+                      <MenuItem value="false">{t.unpaid}</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
+              </Box>
+              
+              <TableContainer component={Paper} elevation={0}>
+                <Table sx={{ minWidth: 650 }}>
+                  <TableHead sx={{ bgcolor: 'grey.100' }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{t.teacher}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{t.amount}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{t.bonus}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{t.deductions}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{t.total}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{t.status}</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>{t.actions}</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          <CircularProgress />
+                        </TableCell>
+                      </TableRow>
+                    ) : salaryRecords.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          {t.noRecords}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      salaryRecords.map((record) => (
+                        <TableRow key={record._id} hover>
+                          <TableCell>
+                            <Stack direction="row" alignItems="center" spacing={2}>
+                              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                                {record.teacher?.name?.charAt(0)}
+                              </Avatar>
+                              <Typography>{record.teacher?.name || 'N/A'}</Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>${record.amount?.toLocaleString()}</TableCell>
+                          <TableCell>${record.bonus?.toLocaleString()}</TableCell>
+                          <TableCell>${record.deductions?.toLocaleString()}</TableCell>
+                          <TableCell>
+                            <Typography fontWeight="bold">
+                              ${record.totalAmount?.toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={record.paid ? t.paid : t.unpaid}
+                              color={record.paid ? 'success' : 'error'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1}>
+                              <Tooltip title={t.edit}>
+                                <IconButton 
+                                  size="small"
+                                  onClick={() => handleOpenDialog(record)}
+                                  color="primary"
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              
+                              <Tooltip title={t.delete}>
+                                <IconButton 
+                                  size="small"
+                                  onClick={() => handleOpenDeleteDialog(record)}
+                                  color="error"
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              
+                              {!record.paid && (
+                                <Tooltip title={t.markAsPaid}>
+                                  <IconButton 
+                                    size="small"
+                                    onClick={() => handleMarkAsPaid(record)}
+                                    color="success"
+                                  >
+                                    <PaidIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
+
+          {/* Statistics Tab */}
+          {tabValue === 1 && (
+            <Box>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                {t.statistics} - {getMonthName(filters.month)} {filters.year}
+              </Typography>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ p: 2 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Mushaharka Guud
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+                      ${salaryStatistics?.totalAmount?.toLocaleString() || 0}
+                    </Typography>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card sx={{ p: 2 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Qiyaastii Bixinta
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                      ${salaryStatistics?.paidAmount?.toLocaleString() || 0}
+                    </Typography>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* All Teachers Tab */}
+          {tabValue === 2 && (
+            <TableContainer component={Paper} elevation={0}>
+              <Table>
+                <TableHead sx={{ bgcolor: 'grey.100' }}>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{t.teacher}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Subject</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{t.salaryStatus}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>{t.actions}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <CircularProgress />
+                      </TableCell>
+                    </TableRow>
+                  ) : teachers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        {t.noTeachers}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    teachers.map((teacher) => (
+                      <TableRow key={teacher._id} hover>
+                        <TableCell>
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                              {teacher.name?.charAt(0)}
+                            </Avatar>
+                            <Typography>{teacher.name}</Typography>
+                          </Stack>
+                        </TableCell>
+                        <TableCell>{teacher.email}</TableCell>
+                        <TableCell>{teacher.subject}</TableCell>
+                        <TableCell>
+                          {teacher.salaryRecord ? (
+                            <Chip
+                              label={teacher.salaryRecord.paid ? t.paid : t.unpaid}
+                              color={teacher.salaryRecord.paid ? 'success' : 'error'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip label="No Record" color="warning" size="small" variant="outlined" />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                              if (teacher.salaryRecord) {
+                                handleOpenDialog(teacher.salaryRecord);
+                              } else {
+                                setFormData({
+                                  teacher: teacher._id,
+                                  amount: '',
+                                  month: filters.month,
+                                  year: filters.year,
+                                  bonus: '',
+                                  deductions: '',
+                                  note: '',
+                                  paid: false,
+                                });
+                                setOpenDialog(true);
+                              }
+                            }}
+                          >
+                            {teacher.salaryRecord ? t.edit : t.addSalary}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
+      </Card>
+
+      {/* Add/Edit Salary Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ 
+          bgcolor: 'primary.main', 
+          color: 'white',
+          fontWeight: 'bold'
+        }}>
+          {currentRecord ? t.edit : t.addSalary}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>{t.teacher}</InputLabel>
+                  <Select
+                    name="teacher"
+                    value={formData.teacher}
+                    onChange={handleInputChange}
+                    label={t.teacher}
+                    required
+                    disabled={!!currentRecord}
+                  >
+                    <MenuItem value="">{t.selectTeacher}</MenuItem>
+                    {teachers.map((teacher) => (
+                      <MenuItem key={teacher._id} value={teacher._id}>
+                        {teacher.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="amount"
+                  label={t.amount}
+                  type="number"
+                  value={formData.amount}
+                  onChange={handleInputChange}
+                  fullWidth
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>{t.month}</InputLabel>
+                  <Select
+                    name="month"
+                    value={formData.month}
+                    onChange={handleInputChange}
+                    label={t.month}
+                    required
+                  >
+                    {months.map((month) => (
+                      <MenuItem key={month.value} value={month.value}>
+                        {month.label[language]}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>{t.year}</InputLabel>
+                  <Select
+                    name="year"
+                    value={formData.year}
+                    onChange={handleInputChange}
+                    label={t.year}
+                    required
+                  >
+                    {years.map((year) => (
+                      <MenuItem key={year} value={year}>
+                        {year}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="bonus"
+                  label={t.bonus}
+                  type="number"
+                  value={formData.bonus}
+                  onChange={handleInputChange}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="deductions"
+                  label={t.deductions}
+                  type="number"
+                  value={formData.deductions}
+                  onChange={handleInputChange}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  name="note"
+                  label={t.note}
+                  value={formData.note}
+                  onChange={handleInputChange}
+                  fullWidth
+                  multiline
+                  rows={3}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>{t.status}</InputLabel>
+                  <Select
+                    name="paid"
+                    value={formData.paid}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        paid: e.target.value === 'true',
+                      }))
+                    }
+                    label={t.status}
+                  >
+                    <MenuItem value="false">{t.unpaid}</MenuItem>
+                    <MenuItem value="true">{t.paid}</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDialog} variant="outlined">
+            {t.cancel}
+          </Button>
+          <Button onClick={handleSubmit} variant="contained" color="primary">
+            {t.save}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Salary Dialog */}
+      <Dialog open={openBulkDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ 
+          bgcolor: 'primary.main', 
+          color: 'white',
+          fontWeight: 'bold'
+        }}>
+          {t.addAllSalaries}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <form onSubmit={handleBulkSubmit}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="amount"
+                  label={t.amount}
+                  type="number"
+                  value={bulkFormData.amount}
+                  onChange={handleBulkInputChange}
+                  fullWidth
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>{t.month}</InputLabel>
+                  <Select
+                    name="month"
+                    value={bulkFormData.month}
+                    onChange={handleBulkInputChange}
+                    label={t.month}
+                    required
+                  >
+                    {months.map((month) => (
+                      <MenuItem key={month.value} value={month.value}>
+                        {month.label[language]}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>{t.year}</InputLabel>
+                  <Select
+                    name="year"
+                    value={bulkFormData.year}
+                    onChange={handleBulkInputChange}
+                    label={t.year}
+                    required
+                  >
+                    {years.map((year) => (
+                      <MenuItem key={year} value={year}>
+                        {year}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="bonus"
+                  label={t.bonus}
+                  type="number"
+                  value={bulkFormData.bonus}
+                  onChange={handleBulkInputChange}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  name="deductions"
+                  label={t.deductions}
+                  type="number"
+                  value={bulkFormData.deductions}
+                  onChange={handleBulkInputChange}
+                  fullWidth
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  name="note"
+                  label={t.note}
+                  value={bulkFormData.note}
+                  onChange={handleBulkInputChange}
+                  fullWidth
+                  multiline
+                  rows={3}
+                />
+              </Grid>
+            </Grid>
+          </form>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDialog} variant="outlined">
+            {t.cancel}
+          </Button>
+          <Button onClick={handleBulkSubmit} variant="contained" color="primary">
+            {t.save}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
+        <DialogTitle sx={{ 
+          bgcolor: 'error.main', 
+          color: 'white',
+          fontWeight: 'bold'
+        }}>
+          {t.delete}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography variant="body1">
+            {t.confirmDelete}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDeleteDialog} variant="outlined">
+            {t.cancel}
+          </Button>
+          <Button onClick={handleDelete} variant="contained" color="error">
+            {t.delete}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

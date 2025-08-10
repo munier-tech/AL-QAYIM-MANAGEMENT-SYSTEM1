@@ -1,4 +1,3 @@
-// studentsStore.js
 import { create } from 'zustand'
 import axios from '../config/axios'
 import toast from 'react-hot-toast'
@@ -147,6 +146,18 @@ const useStudentsStore = create((set, get) => ({
   },
 
   clearSelectedStudent: () => set({ selectedStudent: null }),
+
+  // <-- New searchStudents function -->
+  searchStudents: (query) => {
+    const { students } = get()
+    const lowerQuery = query.toLowerCase()
+    return students.filter(student =>
+      (student.name && student.name.toLowerCase().includes(lowerQuery)) ||
+      (student.email && student.email.toLowerCase().includes(lowerQuery)) ||
+      (student.phone && student.phone.includes(query)) ||
+      (student.class && student.class.name && student.class.name.toLowerCase().includes(lowerQuery))
+    )
+  },
 }));
 
 export default useStudentsStore;

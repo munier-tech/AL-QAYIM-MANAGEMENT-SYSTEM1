@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiEdit, FiTrash2, FiUser, FiDollarSign, FiFilter, FiSearch, FiPlus, FiX, FiCheck } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiUser, FiFilter, FiSearch, FiPlus, FiX, FiCheck } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import useClassesStore from '../../store/classesStore';
@@ -15,7 +15,6 @@ const translations = {
     newStudent: "Arday Cusub",
     filter: "Filter",
     assignClass: "U Qoondee Fasalka",
-    payFee: "Bixi Lacag",
     edit: "Wax Ka Badal",
     delete: "Tirtir",
     cancel: "Jooji",
@@ -29,18 +28,10 @@ const translations = {
     class: "Fasalka",
     motherPhone: "Lambarka Hooyo",
     fatherPhone: "Lambarka Aabo",
-    feeStatus: "Xaaladda Lacagta",
     actions: "Ficilada",
-  },
-  status: {
-    paid: "La Bixiyay",
-    pending: "Haysatan",
-    overpaid: "Dheeri Bixiyay",
-    noFee: "Lacag La'aan",
   },
   dialogs: {
     assignTitle: "U Qoondee Ardayda Fasalka",
-    feeTitle: "Diiwaan Gelinta Lacagta",
     deleteTitle: "Tirtir Ardayga",
     deleteMessage: "Ma hubtaa inaad rabto inaad tirtirto ardaygan?",
     editTitle: "Wax Ka Badal Ardayga",
@@ -49,8 +40,6 @@ const translations = {
     totalStudents: "Wadarta Ardayda",
     maleStudents: "Ardayda Labka",
     femaleStudents: "Ardayda Dheddigga",
-    withFees: "Kuwa Lacagta",
-    pendingFees: "Lacag Haysato",
   },
   searchPlaceholder: "Raadi ardayga...",
 };
@@ -63,7 +52,6 @@ const GetAllStudents = () => {
     fetchStudents,
     deleteStudent,
     assignStudentToClass,
-    trackFeePayment,
     searchStudents,
     updateStudent,
   } = useStudentsStore();
@@ -72,12 +60,10 @@ const GetAllStudents = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [isFeeDialogOpen, setIsFeeDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentStudent, setCurrentStudent] = useState(null);
   const [selectedClassId, setSelectedClassId] = useState('');
-  const [paymentAmount, setPaymentAmount] = useState('');
   const [editForm, setEditForm] = useState({
     fullname: '',
     age: '',
@@ -114,31 +100,6 @@ const GetAllStudents = () => {
       }
     } catch (error) {
       toast.error('Qalad ayaa ka dhacay markii la qoondeynayay fasalka');
-    }
-  };
-
-  const handleFeePayment = async () => {
-    if (!currentStudent) {
-      toast.error('Fadlan xulo ardayga');
-      return;
-    }
-
-    const amount = parseFloat(paymentAmount) || 0;
-    const total = parseFloat(currentStudent.fee?.total) || 0;
-    
-    try {
-      const { success } = await trackFeePayment(currentStudent._id, { 
-        paid: (currentStudent.fee?.paid || 0) + amount,
-        total: total
-      });
-      if (success) {
-        toast.success('Lacagta si guul leh ayaa loo diiwaan geliyay');
-        setIsFeeDialogOpen(false);
-        setPaymentAmount('');
-        fetchStudents();
-      }
-    } catch (error) {
-      toast.error('Qalad ayaa ka dhacay markii la bixinayay lacagta');
     }
   };
 
@@ -181,40 +142,6 @@ const GetAllStudents = () => {
       fatherNumber: student.fatherNumber || ''
     });
     setIsEditDialogOpen(true);
-  };
-
-  const getFeeStatus = (student) => {
-    if (!student?.fee) {
-      return { 
-        status: translations.status.noFee, 
-        color: 'bg-gray-100 text-gray-800',
-        balance: 0
-      };
-    }
-
-    const total = parseFloat(student.fee.total) || 0;
-    const paid = parseFloat(student.fee.paid) || 0;
-    const balance = total - paid;
-
-    if (total === 0) {
-      return {
-        status: translations.status.noFee,
-        color: 'bg-gray-100 text-gray-800',
-        balance: 0
-      };
-    } else if (balance <= 0) {
-      return {
-        status: balance < 0 ? translations.status.overpaid : translations.status.paid,
-        color: balance < 0 ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800',
-        balance
-      };
-    } else {
-      return {
-        status: translations.status.pending,
-        color: 'bg-red-100 text-red-800',
-        balance
-      };
-    }
   };
 
   if (loading && students.length === 0) {
@@ -301,7 +228,7 @@ const GetAllStudents = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-sm font-medium text-gray-500">
               {translations.stats.totalStudents}
@@ -322,18 +249,6 @@ const GetAllStudents = () => {
             </h3>
             <p className="text-2xl font-bold mt-1">
               {students.filter(s => s.gender === 'female').length}
-            </p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-500">
-              {translations.stats.pendingFees}
-            </h3>
-            <p className="text-2xl font-bold mt-1">
-              {students.filter(s => {
-                const total = parseFloat(s.fee?.total) || 0;
-                const paid = parseFloat(s.fee?.paid) || 0;
-                return total > 0 && paid < total;
-              }).length}
             </p>
           </div>
         </div>
@@ -373,98 +288,69 @@ const GetAllStudents = () => {
                     {translations.table.fatherPhone}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {translations.table.feeStatus}
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {translations.table.actions}
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredStudents.map((student) => {
-                  const feeStatus = getFeeStatus(student);
-                  return (
-                    <tr key={student._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                        {student.fullname}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                        {student.age}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                        {student.gender === 'male' ? 'Lab' : 'Dheddig'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                        {student.class?.name || 'Fasalka La\'aan'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                        {student.motherNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                        {student.fatherNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${feeStatus.color}`}>
-                          {feeStatus.status}
-                        </span>
-                        {student.fee && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            <p>Bixiyay: ${student.fee.paid || 0}</p>
-                            <p>Wadarta: ${student.fee.total || 0}</p>
-                            <p>Haraag: ${(student.fee.total - student.fee.paid).toFixed(2)}</p>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex gap-2">
-                          <button
-                            className="text-blue-600 hover:text-blue-900 p-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCurrentStudent(student);
-                              setSelectedClassId(student.class?._id || '');
-                              setIsAssignDialogOpen(true);
-                            }}
-                          >
-                            <FiUser className="w-5 h-5" />
-                          </button>
+                {filteredStudents.map((student) => (
+                  <tr key={student._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                      {student.fullname}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {student.age}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {student.gender === 'male' ? 'Lab' : 'Dheddig'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {student.class?.name || 'Fasalka La\'aan'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {student.motherNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                      {student.fatherNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex gap-2">
+                        <button
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentStudent(student);
+                            setSelectedClassId(student.class?._id || '');
+                            setIsAssignDialogOpen(true);
+                          }}
+                        >
+                          <FiUser className="w-5 h-5" />
+                        </button>
 
-                          <button
-                            className="text-green-600 hover:text-green-900 p-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCurrentStudent(student);
-                              setIsFeeDialogOpen(true);
-                            }}
-                          >
-                            <FiDollarSign className="w-5 h-5" />
-                          </button>
+                        <button
+                          className="text-yellow-600 hover:text-yellow-900 p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(student);
+                          }}
+                        >
+                          <FiEdit className="w-5 h-5" />
+                        </button>
 
-                          <button
-                            className="text-yellow-600 hover:text-yellow-900 p-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditModal(student);
-                            }}
-                          >
-                            <FiEdit className="w-5 h-5" />
-                          </button>
-
-                          <button
-                            className="text-red-600 hover:text-red-900 p-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCurrentStudent(student);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                          >
-                            <FiTrash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        <button
+                          className="text-red-600 hover:text-red-900 p-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentStudent(student);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <FiTrash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -508,79 +394,6 @@ const GetAllStudents = () => {
                   type="button"
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   onClick={() => setIsAssignDialogOpen(false)}
-                >
-                  {translations.buttons.cancel}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Fee Payment Modal */}
-        {isFeeDialogOpen && currentStudent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-              <div className="p-6">
-                <h3 className="text-lg font-medium leading-6 text-gray-900">
-                  {translations.dialogs.feeTitle}
-                </h3>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Wadarta Lacagta ($)
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full border rounded-md p-2"
-                      placeholder="Gali wadarta lacagta"
-                      value={currentStudent.fee?.total || ''}
-                      onChange={(e) => {
-                        const newTotal = parseFloat(e.target.value) || 0;
-                        setCurrentStudent({
-                          ...currentStudent,
-                          fee: {
-                            ...currentStudent.fee,
-                            total: newTotal
-                          }
-                        });
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Lacagta la bixiyay ($)
-                    </label>
-                    <input
-                      type="number"
-                      className="w-full border rounded-md p-2"
-                      placeholder="Gali lacagta la bixiyay"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                    />
-                  </div>
-                  <div className="mt-2 space-y-1">
-                    <p className="text-sm text-gray-700">
-                      <span className="font-medium">Haraag:</span> $
-                      {((currentStudent.fee?.total || 0) - (currentStudent.fee?.paid || 0) - (parseFloat(paymentAmount) || 0)).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg">
-                <button
-                  type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={handleFeePayment}
-                >
-                  {translations.buttons.confirm}
-                </button>
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                  onClick={() => {
-                    setIsFeeDialogOpen(false);
-                    setPaymentAmount('');
-                  }}
                 >
                   {translations.buttons.cancel}
                 </button>

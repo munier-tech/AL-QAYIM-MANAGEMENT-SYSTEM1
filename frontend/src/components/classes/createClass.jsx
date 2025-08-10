@@ -50,7 +50,7 @@ const CreateClass = () => {
     try {
       const result = await createClass(formData);
       if (result.success) {
-        navigate('/classes');
+        navigate('/getAll');
       }
     } finally {
       setIsSubmitting(false);
@@ -122,7 +122,7 @@ const CreateClass = () => {
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               <FiSave className="mr-2" />
-              {isSubmitting ? 'Kaydinaya...' : 'Kaydi Fasalka'}
+              {isSubmitting ? 'Abuuraya...' : 'Abuur Fasalka'}
             </button>
           </div>
         </form>
