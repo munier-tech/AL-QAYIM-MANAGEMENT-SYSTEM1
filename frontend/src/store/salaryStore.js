@@ -14,11 +14,14 @@ export const useSalaryStore = create((set, get) => ({
     try {
       set({ loading: true });
 
-      // Ensure numeric fields and compute totalAmount if not present
+      // Normalize numeric fields and compute totalAmount
       const amount = Number(data.amount) || 0;
       const bonus = Number(data.bonus) || 0;
       const deductions = Number(data.deductions) || 0;
-      const totalAmount = typeof data.totalAmount !== "undefined" ? Number(data.totalAmount) : (amount + bonus - deductions);
+      const totalAmount =
+        typeof data.totalAmount !== "undefined"
+          ? Number(data.totalAmount)
+          : amount + bonus - deductions;
 
       const payload = {
         ...data,
@@ -26,6 +29,9 @@ export const useSalaryStore = create((set, get) => ({
         bonus,
         deductions,
         totalAmount,
+        // Normalize month if present (convert string "08" -> number 8)
+        month: data.month ? Number(data.month) : undefined,
+        year: data.year ? Number(data.year) : undefined,
       };
 
       const res = await axios.post("/salaries/create", payload);
@@ -36,7 +42,10 @@ export const useSalaryStore = create((set, get) => ({
       return res.data.salaryRecord;
     } catch (err) {
       console.error("Error creating salary record:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       throw err;
     }
   },
@@ -45,7 +54,13 @@ export const useSalaryStore = create((set, get) => ({
   createAllTeachersSalaries: async (data) => {
     try {
       set({ loading: true });
-      const res = await axios.post("/salaries/create-all", data);
+      // Normalize month and year here too
+      const payload = {
+        ...data,
+        month: data.month ? Number(data.month) : undefined,
+        year: data.year ? Number(data.year) : undefined,
+      };
+      const res = await axios.post("/salaries/create-all", payload);
       set((state) => ({
         salaryRecords: [...res.data.salaryRecords, ...state.salaryRecords],
         loading: false,
@@ -53,7 +68,10 @@ export const useSalaryStore = create((set, get) => ({
       return res.data;
     } catch (err) {
       console.error("Error creating teacher salaries:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       throw err;
     }
   },
@@ -63,15 +81,18 @@ export const useSalaryStore = create((set, get) => ({
     try {
       set({ loading: true });
       const params = new URLSearchParams();
-      if (month) params.append("month", month);
-      if (year) params.append("year", year);
+      if (month) params.append("month", Number(month));
+      if (year) params.append("year", Number(year));
 
       const res = await axios.get(`/salaries/teachers?${params}`);
       set({ teachers: res.data.teachers, loading: false });
       return res.data.teachers;
     } catch (err) {
       console.error("Error fetching teachers:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       return [];
     }
   },
@@ -83,7 +104,12 @@ export const useSalaryStore = create((set, get) => ({
       const params = new URLSearchParams();
       Object.keys(filters).forEach((key) => {
         if (filters[key] !== undefined && filters[key] !== null) {
-          params.append(key, filters[key]);
+          // Normalize month and year as numbers if applicable
+          if (key === "month" || key === "year") {
+            params.append(key, Number(filters[key]));
+          } else {
+            params.append(key, filters[key]);
+          }
         }
       });
 
@@ -92,7 +118,10 @@ export const useSalaryStore = create((set, get) => ({
       return res.data.salaryRecords;
     } catch (err) {
       console.error("Error fetching all salary records:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       return [];
     }
   },
@@ -101,13 +130,16 @@ export const useSalaryStore = create((set, get) => ({
   getTeacherSalaryRecords: async (teacherId, year) => {
     try {
       set({ loading: true });
-      const params = year ? `?year=${year}` : "";
+      const params = year ? `?year=${Number(year)}` : "";
       const res = await axios.get(`/salaries/teacher/${teacherId}${params}`);
       set({ teacherSalaryRecords: res.data.salaryRecords, loading: false });
       return res.data.salaryRecords;
     } catch (err) {
       console.error("Error fetching teacher salary records:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       return [];
     }
   },
@@ -117,23 +149,38 @@ export const useSalaryStore = create((set, get) => ({
     try {
       set({ loading: true });
 
-      // Ensure numeric fields and recompute totalAmount if needed
       const amount = Number(updatedData.amount) || 0;
       const bonus = Number(updatedData.bonus) || 0;
       const deductions = Number(updatedData.deductions) || 0;
-      const totalAmount = typeof updatedData.totalAmount !== "undefined" ? Number(updatedData.totalAmount) : (amount + bonus - deductions);
+      const totalAmount =
+        typeof updatedData.totalAmount !== "undefined"
+          ? Number(updatedData.totalAmount)
+          : amount + bonus - deductions;
 
-      const payload = { ...updatedData, amount, bonus, deductions, totalAmount };
+      const payload = {
+        ...updatedData,
+        amount,
+        bonus,
+        deductions,
+        totalAmount,
+        month: updatedData.month ? Number(updatedData.month) : undefined,
+        year: updatedData.year ? Number(updatedData.year) : undefined,
+      };
 
       const res = await axios.put(`/salaries/update/${salaryId}`, payload);
       set((state) => ({
-        salaryRecords: state.salaryRecords.map((rec) => (rec._id === salaryId ? res.data.salaryRecord : rec)),
+        salaryRecords: state.salaryRecords.map((rec) =>
+          rec._id === salaryId ? res.data.salaryRecord : rec
+        ),
         loading: false,
       }));
       return res.data.salaryRecord;
     } catch (err) {
       console.error("Error updating salary record:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       throw err;
     }
   },
@@ -149,7 +196,10 @@ export const useSalaryStore = create((set, get) => ({
       }));
     } catch (err) {
       console.error("Error deleting salary record:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       throw err;
     }
   },
@@ -159,23 +209,24 @@ export const useSalaryStore = create((set, get) => ({
     try {
       set({ loading: true });
       const params = new URLSearchParams();
-      if (month) params.append("month", month);
-      if (year) params.append("year", year);
+      if (month) params.append("month", Number(month));
+      if (year) params.append("year", Number(year));
 
       const res = await axios.get(`/salaries/statistics?${params}`);
       set({ salaryStatistics: res.data.statistics, loading: false });
       return res.data.statistics;
     } catch (err) {
       console.error("Error fetching salary statistics:", err);
-      set({ error: err.response?.data?.message || err.message, loading: false });
+      set({
+        error: err.response?.data?.message || err.message,
+        loading: false,
+      });
       return null;
     }
   },
 
-  // Clear errors
   clearError: () => set({ error: null }),
 
-  // Reset store
   reset: () =>
     set({
       salaryRecords: [],

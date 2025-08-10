@@ -10,19 +10,16 @@ export const createSalaryRecord = async (req, res) => {
       return res.status(400).json({ message: "Fadlan buuxi dhammaan meelaha banan" });
     }
 
-    // Check if teacher exists
     const existingTeacher = await Teachers.findById(teacher);
     if (!existingTeacher) {
       return res.status(404).json({ message: "Macalinka lama helin" });
     }
 
-    // Check if salary record already exists for this teacher, month, and year
     const existingSalary = await Salary.findOne({ teacher, month, year });
     if (existingSalary) {
       return res.status(400).json({ message: "Mushaharka bishan macalinka horay ayaa loo abuuray" });
     }
 
-    // ✅ Calculate totalAmount
     const totalAmount = Number(amount) + Number(bonus || 0) - Number(deductions || 0);
 
     const salaryRecord = new Salary({
@@ -32,14 +29,12 @@ export const createSalaryRecord = async (req, res) => {
       year,
       bonus: bonus || 0,
       deductions: deductions || 0,
-      totalAmount, // ✅ include required field
+      totalAmount,
       note: note || "",
       createdBy: req.user.id
     });
 
     await salaryRecord.save();
-
-    // Populate the created record for response
     await salaryRecord.populate(["teacher", "createdBy"]);
 
     return res.status(201).json({
@@ -63,7 +58,6 @@ export const createAllTeachersSalaries = async (req, res) => {
       return res.status(400).json({ message: "Fadlan buuxi dhammaan meelaha banan" });
     }
 
-    // Get all teachers
     const teachers = await Teachers.find({});
     if (teachers.length === 0) {
       return res.status(400).json({ message: "Macalimiin lama helin" });
@@ -73,12 +67,7 @@ export const createAllTeachersSalaries = async (req, res) => {
     const existingSalaries = [];
 
     for (const teacher of teachers) {
-      // Check if salary already exists for this teacher
-      const existingSalary = await Salary.findOne({ 
-        teacher: teacher._id, 
-        month, 
-        year 
-      });
+      const existingSalary = await Salary.findOne({ teacher: teacher._id, month, year });
 
       if (existingSalary) {
         existingSalaries.push(teacher.name);
@@ -118,58 +107,76 @@ export const createAllTeachersSalaries = async (req, res) => {
   }
 };
 
+
 // Get all salary records
 export const getAllSalaryRecords = async (req, res) => {
   try {
-    const { month, year, paid } = req.query;
-    
+    let { month, year, paid } = req.query;
+
+    if (month) month = parseInt(month);
+    if (year) year = parseInt(year);
+
+    console.log("Filter params:", { month, year, paid });
+
     let filter = {};
-    if (month) filter.month = parseInt(month);
-    if (year) filter.year = parseInt(year);
-    if (paid !== undefined) filter.paid = paid === 'true';
+    if (month) filter.month = month;
+    if (year) filter.year = year;
+    // Only apply paid filter if explicitly 'true' or 'false'
+    if (paid === 'true' || paid === 'false') {
+      filter.paid = paid === 'true';
+    }
 
     const salaryRecords = await Salary.find(filter)
       .populate('teacher', 'name email subject')
       .populate('createdBy', 'username')
       .sort({ createdAt: -1 });
 
-    return res.status(200).json({ 
-      message: "Diiwaanka mushaharka si guul leh ayaa loo helay", 
-      salaryRecords 
-    });
+    // Filter out records where teacher no longer exists (null after populate)
+    const filteredRecords = salaryRecords.filter(record => record.teacher !== null);
 
+    console.log(`Found ${filteredRecords.length} salary records after filtering orphaned teachers`);
+
+    return res.status(200).json({
+      message: "Diiwaanka mushaharka si guul leh ayaa loo helay",
+      salaryRecords: filteredRecords,
+    });
   } catch (error) {
     console.error("Error getting salary records:", error);
     return res.status(500).json({ message: "Khalad ayaa dhacay diiwaanka mushaharka soo bandhigista" });
   }
 };
 
+
 // Get salary records for a specific teacher
 export const getTeacherSalaryRecords = async (req, res) => {
   try {
     const { teacherId } = req.params;
-    const { year } = req.query;
+    const yearParam = req.query.year;
+    const year = yearParam ? parseInt(yearParam) : undefined;
 
     let filter = { teacher: teacherId };
-    if (year) filter.year = parseInt(year);
+    if (year) filter.year = year;
 
     const salaryRecords = await Salary.find(filter)
       .populate('teacher', 'name email subject')
       .populate('createdBy', 'username')
       .sort({ year: -1, month: -1 });
 
-    return res.status(200).json({ 
-      message: "Diiwaanka mushaharka macalinka si guul leh ayaa loo helay", 
-      salaryRecords 
-    });
+    // Filter out records whose teacher ref is null (orphaned records)
+    const filteredRecords = salaryRecords.filter(record => record.teacher !== null);
 
+    return res.status(200).json({
+      message: "Diiwaanka mushaharka macalinka si guul leh ayaa loo helay",
+      salaryRecords: filteredRecords,
+    });
   } catch (error) {
     console.error("Error getting teacher salary records:", error);
     return res.status(500).json({ message: "Khalad ayaa dhacay diiwaanka mushaharka macalinka soo bandhigista" });
   }
 };
 
-// Update salary record (mark as paid/unpaid, update amounts)
+
+// Update salary record
 export const updateSalaryRecord = async (req, res) => {
   try {
     const { salaryId } = req.params;
@@ -180,7 +187,6 @@ export const updateSalaryRecord = async (req, res) => {
       return res.status(404).json({ message: "Diiwaanka mushaharka lama helin" });
     }
 
-    // Update fields
     if (amount !== undefined) salaryRecord.amount = amount;
     if (bonus !== undefined) salaryRecord.bonus = bonus;
     if (deductions !== undefined) salaryRecord.deductions = deductions;
@@ -191,8 +197,6 @@ export const updateSalaryRecord = async (req, res) => {
     if (note !== undefined) salaryRecord.note = note;
 
     await salaryRecord.save();
-
-    // Populate for response
     await salaryRecord.populate(['teacher', 'createdBy']);
 
     return res.status(200).json({ 
@@ -205,6 +209,7 @@ export const updateSalaryRecord = async (req, res) => {
     return res.status(500).json({ message: "Khalad ayaa dhacay diiwaanka mushaharka cusboonaysiinta" });
   }
 };
+
 
 // Delete salary record
 export const deleteSalaryRecord = async (req, res) => {
@@ -225,6 +230,7 @@ export const deleteSalaryRecord = async (req, res) => {
     return res.status(500).json({ message: "Khalad ayaa dhacay diiwaanka mushaharka tirista" });
   }
 };
+
 
 // Get salary statistics
 export const getSalaryStatistics = async (req, res) => {
@@ -266,6 +272,7 @@ export const getSalaryStatistics = async (req, res) => {
     return res.status(500).json({ message: "Khalad ayaa dhacay tirakoobka mushaharka soo bandhigista" });
   }
 };
+
 
 // Get all teachers for salary management
 export const getAllTeachers = async (req, res) => {
