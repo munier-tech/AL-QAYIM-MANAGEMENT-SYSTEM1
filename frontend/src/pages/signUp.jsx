@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import useAuthStore from '../store/authStore'
+import toast from 'react-hot-toast'
 
 // Add role validation
 const schema = yup.object({
@@ -102,13 +103,13 @@ function Signup() {
             className="mt-6 text-3xl font-bold text-gray-900"
             variants={itemVariants}
           >
-            Al-qiyam
+            AL-MINHAAJ
           </motion.h2>
           <motion.p 
             className="mt-2 text-lg text-gray-600"
             variants={itemVariants}
           >
-            Nidaamka Maamulka Machadka Al-Qiyam
+            Nidaamka Maamulka Machadka AL-MINHAAJ
           </motion.p>
           <motion.p 
             className="mt-2 text-sm text-gray-500"
