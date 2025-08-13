@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Menu,
@@ -6,25 +6,10 @@ import {
   Home,
   Users,
   GraduationCap,
-  BookOpen,
-  Calendar,
-  DollarSign,
-  Settings,
-  LogOut,
-  User,
-  ChevronDown,
+  BookOpen, DollarSign, LogOut, ChevronDown,
   Bell,
   UserCog,
-  User2,
-  Bookmark,
-  FileText,
-  ClipboardList,
-  Shield,
-  CreditCard,
-  BarChart2,
-  PlusCircle,
-  Search,
-  FileSearch,
+  User2, ClipboardList, PlusCircle, FileSearch,
   Clock,
   ClipboardCheck,
   FileBarChart2,
@@ -33,9 +18,7 @@ import {
   BookCheck,
   HeartPulse,
   Gavel,
-  CalendarCheck,
-  Wallet,
-  PieChart,
+  CalendarCheck, PieChart,
   UserCircle,
   List,
   RefreshCw
@@ -117,7 +100,6 @@ const menuItems = [
     subItems: [
       { text: 'Raadi Xaadiriska', path: '/AttendanceByDate', icon: FileSearch },
       { text: 'Abuur Xaadirska Fasalka', path: '/createAttendance', icon: ClipboardCheck },
-      { text: 'Reports', path: '/attendance/reports', icon: FileBarChart2 },
     ]
   },
     {

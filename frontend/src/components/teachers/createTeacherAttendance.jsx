@@ -185,24 +185,7 @@ const CreateTeacherAttendance = () => {
                     animate={{ opacity: 1, height: 'auto' }}
                     className="grid grid-cols-2 gap-4"
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Soo Gal</label>
-                      <input
-                        type="time"
-                        value={formData.checkIn}
-                        onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ka Bax</label>
-                      <input
-                        type="time"
-                        value={formData.checkOut}
-                        onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
+                  
                   </motion.div>
                 )}
 
