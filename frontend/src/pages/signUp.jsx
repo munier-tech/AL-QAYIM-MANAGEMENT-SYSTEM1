@@ -296,7 +296,7 @@ function Signup() {
           className="text-center border p-4 bg-violet-700  text-xs text-white rounded-lg font-bold"
           variants={itemVariants}
         >
-          FADLAN KU KAYDSO MEEL GAARA XOGAHAAGA EMAIL IYO PASSWORDKA SI AANAD U HILMAAMIN 
+          FADLAN KU KAYDSO MEEL GAARA XOGAHAAGA EMAIL KA IYO PASSWORD KA SI AANAD U HILMAAMIN 
         </motion.p>
       </motion.div>
     </div>
