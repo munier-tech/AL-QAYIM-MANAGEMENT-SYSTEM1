@@ -110,15 +110,7 @@ npm install
 
 4. **Environment Setup**
 Create `.env` file in the backend directory:
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/al-qayim-db
-JWT_SECRET=your-super-secret-jwt-key
-CLOUDINARY_CLOUD_NAME=your-cloudinary-name
-CLOUDINARY_API_KEY=your-api-key
-CLOUDINARY_API_SECRET=your-api-secret
-REDIS_URL=redis://localhost:6379
-```
+
 
 5. **Start the development servers**
 
