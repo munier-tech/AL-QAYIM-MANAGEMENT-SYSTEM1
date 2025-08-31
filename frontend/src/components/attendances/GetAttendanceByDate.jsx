@@ -142,7 +142,7 @@ const AttendanceByDate = () => {
       </div>
       
       {/* Class and Date Selection Form */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden h-56 mb-8 p-6">
+      <div className="bg-white rounded-lg shadow-md  h-50 mb-8 p-6">
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-0 md:flex md:space-x-4">
           {/* Class Dropdown */}
           <div className="relative w-full md:w-1/3">

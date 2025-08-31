@@ -16,7 +16,7 @@ const translations = {
   age: "Da'da",
   gender: "Jinsiga",
   status: "Xaaladda",
-  present: "Imaan",
+  present: "xaadir",
   absent: "Ma Iman",
   late: "Daahid",
   submit: "Diiwaan Gelin",
