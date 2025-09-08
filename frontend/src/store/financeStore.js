@@ -35,6 +35,58 @@ const useFinanceStore = create((set, get) => ({
     }
   },
 
+  // Update Finance
+  updateFinance: async (financeId, financeData) => {
+    try {
+      set({ loading: true, error: null, successMessage: null });
+
+      const response = await axios.put(`/finance/update/${financeId}`, financeData);
+
+      // Update state list
+      set(state => ({
+        loading: false,
+        successMessage: response.data.message,
+        finances: state.finances.map(finance =>
+          finance._id === financeId ? response.data.finance : finance
+        ),
+        currentFinance: response.data.finance
+      }));
+
+      toast.success(response.data.message);
+      return { success: true, finance: response.data.finance };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Khalad ayaa dhacay markii la cusboonaysiinayay maalgelinta';
+      set({ loading: false, error: errorMessage });
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  },
+
+  // Delete Finance
+  deleteFinance: async (financeId) => {
+    try {
+      set({ loading: true, error: null, successMessage: null });
+
+      const response = await axios.delete(`/finance/delete/${financeId}`);
+
+      // Remove from state list
+      set(state => ({
+        loading: false,
+        successMessage: response.data.message,
+        finances: state.finances.filter(finance => finance._id !== financeId),
+        currentFinance: state.currentFinance?._id === financeId ? null : state.currentFinance
+      }));
+
+      toast.success(response.data.message);
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Khalad ayaa dhacay markii la tirtirayay maalgelinta';
+      set({ loading: false, error: errorMessage });
+      toast.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  },
+
   // Auto-generate monthly finance summary
   generateMonthlyFinance: async (month, year) => {
     try {

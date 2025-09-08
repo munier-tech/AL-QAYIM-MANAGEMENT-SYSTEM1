@@ -394,3 +394,50 @@ export const getFinanceById = async ( req, res ) => {
   }
 }
 
+// Update finance record
+export const updateFinance = async (req, res) => {
+  try {
+    const { financeId } = req.params;
+    const { income, expenses, debt, date } = req.body;
+
+    const finance = await Finance.findById(financeId);
+    if (!finance) {
+      return res.status(404).json({ message: "Maalgelinta lama helin" });
+    }
+
+    // Update only provided fields
+    finance.income = income !== undefined ? income : finance.income;
+    finance.expenses = expenses !== undefined ? expenses : finance.expenses;
+    finance.debt = debt !== undefined ? debt : finance.debt;
+    finance.date = date ? new Date(date) : finance.date;
+    finance.lastUpdated = new Date();
+
+    await finance.save();
+
+    return res.status(200).json({
+      message: "Maalgelinta si guul leh ayaa loo cusboonaysiiyay",
+      finance,
+    });
+  } catch (error) {
+    console.error("error in updateFinance function: ", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete finance record
+export const deleteFinance = async (req, res) => {
+  try {
+    const { financeId } = req.params;
+
+    const finance = await Finance.findByIdAndDelete(financeId);
+
+    if (!finance) {
+      return res.status(404).json({ message: "dhaqaalha lama helin" });
+    }
+
+    return res.status(200).json({ message: "dhaqaalaha si guul leh ayaa loo tirtiray" });
+  } catch (error) {
+    console.error("error in deleteFinance function: ", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
