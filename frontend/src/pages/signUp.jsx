@@ -103,13 +103,13 @@ function Signup() {
             className="mt-6 text-3xl font-bold text-gray-900"
             variants={itemVariants}
           >
-            AL-QIYAM
+            AL-TIBYAAN
           </motion.h2>
           <motion.p 
             className="mt-2 text-lg text-gray-600"
             variants={itemVariants}
           >
-            Nidaamka Maamulka Machadka AL-QIYAM
+            Nidaamka Maamulka Machadka AL-TIBYAAN
           </motion.p>
           <motion.p 
             className="mt-2 text-sm text-gray-500"

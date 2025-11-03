@@ -1,7 +1,7 @@
 {
-  "name": "al-qayim-management-system-backend",
+  "name": "al-tibyaan-management-system-backend",
   "version": "1.0.0",
-  "description": "Backend for Al-Qayim Management System",
+  "description": "Backend for Al-tibyaan Management System",
   "main": "index.js",
   "type": "module",
   "scripts": {
