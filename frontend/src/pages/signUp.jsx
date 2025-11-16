@@ -103,7 +103,7 @@ function Signup() {
             className="mt-6 text-3xl font-bold text-gray-900"
             variants={itemVariants}
           >
-            AL-TIBYAAN
+            AL-QIYAM
           </motion.h2>
           <motion.p 
             className="mt-2 text-lg text-gray-600"
