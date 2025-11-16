@@ -102,7 +102,7 @@ function Login() {
             className="mt-2 text-lg text-gray-600"
             variants={itemVariants}
           >
-            Nidaamka Maamulka Machadka Al-Tibyaan
+            Nidaamka Maamulka Machadka Al-qiyam
           </motion.p>
           <motion.p 
             className="mt-2 text-sm text-gray-500"
